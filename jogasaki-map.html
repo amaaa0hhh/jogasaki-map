@@ -167,7 +167,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bor
         <input class="coord-inp" type="text" id="inp-coord" placeholder="34.8813563, 139.1320935" style="flex:1;">
         <button class="coord-btn" onclick="selectCustom()">決定</button>
       </div>
-      <div class="coord-hint">Googleマップで場所を長押し→座標をコピー→貼り付けて決定（緯度, 経度）</div>
+      <div class="coord-hint">Googleマップで場所を長押し→座標をコピー→貼り付けて決定（緯度, 経度）　<a href="#" onclick="window.TIDE_DEBUG=!window.TIDE_DEBUG;this.textContent=window.TIDE_DEBUG?'[DEBUG ON]':'[debug]';return false;" style="color:var(--cyan);">[debug]</a></div>
     </div>
     <div class="sl-bar">
       <div class="sl-row">
@@ -335,7 +335,7 @@ const REP_PORTS = [
 ];
 
 // 港キャッシュ（APIのlinkで拡張）
-let HARBOR_CACHE = [...REP_PORTS]; // [pc, hc, lat, lng, name]
+let HARBOR_CACHE = []; // 実在港のみ（APIで取得した正確な座標）[pc,hc,lat,lng,name]
 
 // Haversine距離(km)
 function dist(lat1,lng1,lat2,lng2){
@@ -345,14 +345,14 @@ function dist(lat1,lng1,lat2,lng2){
   return 2*Math.asin(Math.sqrt(a))*R;
 }
 
-// 最寄り港を返す
+// 最寄り港を返す（実在港のみ。未構築ならnull）
 function nearestHarbor(lat,lng){
   let best=null,bestD=Infinity;
   for(const p of HARBOR_CACHE){
     const d=dist(lat,lng,p[2],p[3]);
     if(d<bestD){bestD=d;best=p;}
   }
-  return {port:best, dist:Math.round(bestD)};
+  return {port:best, dist:best?Math.round(bestD):Infinity};
 }
 
 // ══════════════════════════════════════════════════
@@ -482,6 +482,19 @@ async function fetchTide(lat, lng){
     // Step3: 全キャッシュから真の最寄り港を選択
     const {port:best, dist:bestD} = nearestHarbor(lat, lng);
     if(!best){ showTideError('対象地点に対応する港が見つかりません'); TIDE_DATA=null; return; }
+
+    // デバッグ: 取得した近隣港トップ8を画面に表示
+    if(window.TIDE_DEBUG){
+      const ranked = [...HARBOR_CACHE]
+        .map(p=>({name:p[4], pc:p[0], hc:p[1], d:dist(lat,lng,p[2],p[3]), lat:p[2], lng:p[3]}))
+        .sort((a,b)=>a.d-b.d).slice(0,8);
+      let dbg = '<div style="font-size:10px;color:#7da8c8;padding:8px;background:rgba(0,0,0,.3);border-radius:8px;margin-bottom:8px;">';
+      dbg += `<b>DEBUG</b> 取得港数:${HARBOR_CACHE.length}<br>`;
+      dbg += ranked.map(r=>`${r.name}(${r.pc}-${r.hc}): ${r.d.toFixed(1)}km`).join('<br>');
+      dbg += '</div>';
+      const el=document.getElementById('tide-content');
+      if(el) el.innerHTML = dbg + (el.innerHTML||'');
+    }
 
     if(bestD > 80){
       showTideError(`最寄りの潮汐観測点（${best[4]}）まで約${bestD}kmあり、\n潮汐データが不正確なため非表示としています`);
