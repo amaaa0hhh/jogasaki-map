@@ -291,49 +291,47 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bor
 //  各都道府県1〜2港の代表港のみ内蔵し、APIで補完
 // ══════════════════════════════════════════════════
 const REP_PORTS = [
-  // JIS都道府県コード, hc起点, おおよその緯度経度, ラベル
-  // linkは指定港の前後数港のみ返すため、1県内に複数のhc起点を配置して網羅性を高める
-  // 実際の最寄り港はlinkにある正しい座標から再選択される
-  // 北海道（広いので多数）
-  [1,1,41.78,140.73,'北海道'],[1,30,42.98,144.38,'北海道'],[1,60,43.20,141.00,'北海道'],[1,90,44.30,143.30,'北海道'],
-  [2,1,40.83,140.74,'青森'],[2,15,40.53,141.53,'青森'],
-  [3,1,39.64,141.95,'岩手'],[3,15,39.00,141.80,'岩手'],
-  [4,1,38.27,141.02,'宮城'],[4,15,38.40,141.45,'宮城'],
-  [5,1,39.72,140.10,'秋田'],[5,10,40.20,140.00,'秋田'],
-  [6,1,38.91,139.83,'山形'],
-  [7,1,37.05,140.89,'福島'],
-  [8,1,36.34,140.57,'茨城'],[8,10,35.90,140.65,'茨城'],
-  [12,1,35.30,140.31,'千葉'],[12,15,35.00,139.85,'千葉'],[12,30,35.65,140.85,'千葉'],
-  [13,1,35.45,139.64,'東京'],[13,15,34.10,139.50,'伊豆諸島'],[13,25,33.10,139.78,'八丈'],
-  [14,1,35.31,139.55,'神奈川'],[14,10,35.15,139.60,'神奈川三浦'],
-  [15,1,37.92,139.06,'新潟'],[15,15,38.00,138.40,'佐渡'],
-  [16,1,36.77,137.06,'富山'],
-  [17,1,37.40,136.90,'石川'],[17,15,37.50,137.00,'能登'],
-  [18,1,35.98,136.07,'福井'],[18,10,35.60,135.95,'福井'],
-  [22,1,34.97,139.10,'伊豆東'],[22,12,34.65,138.85,'伊豆南'],[22,20,34.90,138.40,'駿河湾'],[22,28,34.70,137.50,'遠州'],
-  [23,1,34.74,137.07,'愛知'],[23,15,34.65,136.95,'渥美'],
-  [24,1,34.49,136.71,'三重'],[24,15,34.30,136.30,'志摩'],[24,25,33.90,136.15,'熊野'],
-  [26,1,35.52,135.20,'京都'],
-  [27,1,34.45,135.27,'大阪'],
-  [28,1,34.68,135.18,'兵庫'],[28,15,34.40,134.80,'播磨'],[28,25,35.55,134.50,'但馬'],
-  [30,1,34.20,135.15,'和歌山'],[30,12,33.70,135.40,'南紀'],[30,20,33.55,135.75,'串本'],
-  [31,1,35.53,134.20,'鳥取'],
-  [32,1,35.47,133.05,'島根'],[32,12,35.00,132.30,'石見'],[32,20,36.10,133.00,'隠岐'],
-  [33,1,34.46,133.92,'岡山'],
-  [34,1,34.25,132.55,'広島'],[34,12,34.10,132.90,'広島東'],
-  [35,1,34.00,131.20,'山口'],[35,12,34.40,131.20,'山口北'],
-  [36,1,33.85,134.60,'徳島'],
-  [37,1,34.32,134.05,'香川'],
-  [38,1,33.84,132.70,'愛媛'],[38,12,33.55,132.40,'宇和海'],
-  [39,1,33.50,133.55,'高知'],[39,12,33.00,132.90,'土佐'],[39,20,33.25,134.15,'室戸'],
-  [40,1,33.90,130.85,'福岡'],[40,12,33.60,130.30,'福岡西'],
-  [41,1,33.26,130.00,'佐賀'],
-  [42,1,32.75,129.87,'長崎'],[42,15,33.20,129.55,'平戸'],[42,28,32.60,128.85,'五島'],
-  [43,1,32.55,130.40,'熊本'],[43,12,32.30,130.10,'天草'],
-  [44,1,33.25,131.65,'大分'],[44,12,32.90,131.95,'豊後'],
-  [45,1,31.58,131.40,'宮崎'],[45,8,32.10,131.55,'日向'],
-  [46,1,31.40,130.55,'鹿児島'],[46,12,31.00,130.70,'大隅'],[46,20,30.40,130.50,'種子屋久'],[46,30,28.38,129.50,'奄美'],
-  [47,1,26.21,127.68,'沖縄本島'],[47,12,26.60,128.00,'沖縄北'],[47,20,24.80,125.28,'宮古'],[47,28,24.34,124.16,'八重山'],
+  // 各都道府県の hc=1（必ず存在）を起点とする
+  // 座標は県のおおよその海岸位置（足がかり）。正しい座標はAPIのlinkで取得
+  [1, 1, 43.00,142.00,'北海道'],
+  [2, 1, 40.83,140.74,'青森'],
+  [3, 1, 39.50,141.90,'岩手'],
+  [4, 1, 38.30,141.10,'宮城'],
+  [5, 1, 39.90,140.00,'秋田'],
+  [6, 1, 38.90,139.83,'山形'],
+  [7, 1, 37.00,140.90,'福島'],
+  [8, 1, 36.30,140.60,'茨城'],
+  [12,1, 35.20,140.10,'千葉'],
+  [13,1, 35.45,139.64,'東京'],
+  [14,1, 35.25,139.55,'神奈川'],
+  [15,1, 37.90,139.10,'新潟'],
+  [16,1, 36.77,137.06,'富山'],
+  [17,1, 37.20,136.90,'石川'],
+  [18,1, 35.80,136.05,'福井'],
+  [22,1, 34.90,138.90,'静岡'],
+  [23,1, 34.70,137.10,'愛知'],
+  [24,1, 34.30,136.50,'三重'],
+  [26,1, 35.50,135.20,'京都'],
+  [27,1, 34.45,135.27,'大阪'],
+  [28,1, 34.60,135.10,'兵庫'],
+  [30,1, 34.00,135.20,'和歌山'],
+  [31,1, 35.50,134.20,'鳥取'],
+  [32,1, 35.30,132.70,'島根'],
+  [33,1, 34.46,133.92,'岡山'],
+  [34,1, 34.25,132.60,'広島'],
+  [35,1, 34.10,131.30,'山口'],
+  [36,1, 33.85,134.60,'徳島'],
+  [37,1, 34.32,134.05,'香川'],
+  [38,1, 33.80,132.70,'愛媛'],
+  [39,1, 33.30,133.50,'高知'],
+  [40,1, 33.80,130.60,'福岡'],
+  [41,1, 33.26,130.00,'佐賀'],
+  [42,1, 32.90,129.70,'長崎'],
+  [43,1, 32.50,130.30,'熊本'],
+  [44,1, 33.20,131.70,'大分'],
+  [45,1, 31.80,131.45,'宮崎'],
+  [46,1, 31.20,130.60,'鹿児島'],
+  [47,1, 26.21,127.68,'沖縄'],
 ];
 
 // 港キャッシュ（APIのlinkで拡張）
@@ -390,52 +388,116 @@ function tideUrl(pc, hc, d){
   return `https://api.tide736.net/get_tide.php?pc=${pc}&hc=${hc}&yr=${d.getFullYear()}&mn=${d.getMonth()+1}&dy=${d.getDate()}&rg=day`;
 }
 
+// linkの港をキャッシュに追加
+function cacheLinks(links){
+  if(!links) return;
+  for(const lk of links){
+    if(!HARBOR_CACHE.find(p=>p[0]===lk.prefecture_code&&p[1]===lk.harbor_code)){
+      HARBOR_CACHE.push([lk.prefecture_code, lk.harbor_code, lk.latitude, lk.longitude, lk.harbor_namej]);
+    }
+  }
+}
+
+// 構築済み県インデックス（pc -> [[pc,hc,lat,lng,name],...]）
+const PREF_INDEX = {};
+// JIS都道府県コード -> 隣接県（離島カバーや県境ポイント用）
+const PREF_NEIGHBORS = {
+  1:[2], 2:[1,3,5], 3:[2,4,5], 4:[3,5,6,7], 5:[1,2,3,6], 6:[4,5,7,15], 7:[4,6,8,15],
+  8:[7,12], 12:[8,13,14], 13:[12,14], 14:[12,13,15,22], 15:[6,7,16,18],
+  16:[15,17], 17:[16,18], 18:[15,17,24,26], 22:[14,23], 23:[22,24], 24:[18,23,26,30],
+  26:[18,24,27,28], 27:[26,28,30], 28:[26,27,31,33], 30:[24,27], 31:[28,32,33],
+  32:[31,34,35], 33:[28,31,34,37], 34:[33,35,38], 35:[32,34,40,42],
+  36:[37,38], 37:[33,36,38], 38:[33,34,36,37,39], 39:[36,38],
+  40:[41,42,44], 41:[40,42], 42:[35,40,41], 43:[42,44,45,46], 44:[40,43,45],
+  45:[43,44,46], 46:[43,45,47], 47:[46]
+};
+
+// 指定県の全港をhc連番で総当たり取得してインデックス化（並列バッチ）
+async function buildPrefIndex(pc, onProgress){
+  if(PREF_INDEX[pc]) return PREF_INDEX[pc];
+  const today = new Date();
+  const ports = [];
+  const BATCH = 10; // 10港ずつ並列
+  let hc = 1, stop = false;
+
+  while(!stop && hc <= 120){
+    const batch = [];
+    for(let k=0; k<BATCH; k++) batch.push(hc+k);
+    hc += BATCH;
+
+    const results = await Promise.all(batch.map(async h=>{
+      try{
+        const r = await fetchJSON(tideUrl(pc, h, today));
+        return (r && r.status===1 && r.tide.port) ? r : null;
+      }catch(e){ return null; }
+    }));
+
+    let batchHits = 0;
+    for(const r of results){
+      if(!r) continue;
+      batchHits++;
+      const p = r.tide.port;
+      if(!ports.find(x=>x[0]===p.prefecture_code&&x[1]===p.harbor_code))
+        ports.push([p.prefecture_code, p.harbor_code, p.latitude, p.longitude, p.harbor_namej]);
+      if(r.tide.link) for(const lk of r.tide.link){
+        if(!ports.find(x=>x[0]===lk.prefecture_code&&x[1]===lk.harbor_code))
+          ports.push([lk.prefecture_code, lk.harbor_code, lk.latitude, lk.longitude, lk.harbor_namej]);
+      }
+    }
+    if(onProgress) onProgress(ports.length);
+    // バッチ全滅したら以降の港も無いとみなして打ち切り
+    if(batchHits===0) stop = true;
+  }
+
+  PREF_INDEX[pc] = ports;
+  for(const p of ports){
+    if(!HARBOR_CACHE.find(h=>h[0]===p[0]&&h[1]===p[1])) HARBOR_CACHE.push(p);
+  }
+  return ports;
+}
+
 async function fetchTide(lat, lng){
   const today = new Date();
   const tmrw  = new Date(today); tmrw.setDate(tmrw.getDate()+1);
 
   try{
-    // Step1: 入力地点に近い「県の起点」を距離順に最大3つ選ぶ
-    const reps = [...REP_PORTS]
+    // Step1: 最も近い県を特定
+    const startRep = [...REP_PORTS]
       .map(p=>({p, d:dist(lat,lng,p[2],p[3])}))
-      .sort((a,b)=>a.d-b.d)
-      .slice(0,5)
-      .map(x=>x.p);
+      .sort((a,b)=>a.d-b.d)[0].p;
+    const mainPc = startRep[0];
 
-    // Step2: 各県の起点でAPIを叩き、linkの全港をキャッシュに集約
-    for(const rep of reps){
-      try{
-        const r = await fetchJSON(tideUrl(rep[0], rep[1], today));
-        if(r && r.status===1 && r.tide.link){
-          for(const lk of r.tide.link){
-            if(!HARBOR_CACHE.find(p=>p[0]===lk.prefecture_code&&p[1]===lk.harbor_code)){
-              HARBOR_CACHE.push([lk.prefecture_code, lk.harbor_code, lk.latitude, lk.longitude, lk.harbor_namej]);
-            }
-          }
-        }
-      }catch(e){ /* この県は飛ばす */ }
+    // Step2: その県＋隣接県を総当たりインデックス化
+    const targetPcs = [mainPc, ...(PREF_NEIGHBORS[mainPc]||[])];
+    let built = 0;
+    for(const pc of targetPcs){
+      if(PREF_INDEX[pc]) continue;
+      setTideProgress(`🌊 ${jpName(pc)}の潮汐観測点を取得中…`);
+      await buildPrefIndex(pc, (n)=>{
+        setTideProgress(`🌊 ${jpName(pc)}の潮汐観測点を取得中…（${n}港）`);
+      });
+      built++;
     }
 
-    // Step3: 集約したキャッシュから真の最寄り港を選択
+    // Step3: 全キャッシュから真の最寄り港を選択
     const {port:best, dist:bestD} = nearestHarbor(lat, lng);
-    if(!best){ showTideError('対象地点に対応する港が見つかりません'); return; }
+    if(!best){ showTideError('対象地点に対応する港が見つかりません'); TIDE_DATA=null; return; }
 
-    // Step4: 最寄り港の潮汐を取得
-    const finalR = await fetchJSON(tideUrl(best[0], best[1], today));
-    if(!finalR || finalR.status!==1) throw new Error('潮汐取得失敗');
-
-    const fp = finalR.tide.port;
-    const realDist = Math.round(dist(lat, lng, fp.latitude, fp.longitude));
-    if(realDist > 150){
-      showTideError(`最寄りの潮汐観測点（${fp.harbor_namej}）まで約${realDist}kmあり、\n潮汐データが不正確なため非表示としています`);
+    if(bestD > 80){
+      showTideError(`最寄りの潮汐観測点（${best[4]}）まで約${bestD}kmあり、\n潮汐データが不正確なため非表示としています`);
       TIDE_DATA=null; TIDE_PORT=null;
       return;
     }
 
+    // Step4: 最寄り港の潮汐を取得
+    const finalR = await fetchJSON(tideUrl(best[0], best[1], today));
+    if(!finalR || finalR.status!==1) throw new Error('潮汐取得失敗');
+    const fp = finalR.tide.port;
+    const realDist = Math.round(dist(lat, lng, fp.latitude, fp.longitude));
+
     TIDE_PORT = { ...fp, _dist: realDist };
     TIDE_DATA = parseTideDay(finalR);
 
-    // 翌日分
     try{
       const rt = await fetchJSON(tideUrl(fp.prefecture_code, fp.harbor_code, tmrw));
       if(rt && rt.status===1) TIDE_TMRW = parseTideDay(rt);
@@ -449,6 +511,21 @@ async function fetchTide(lat, lng){
     showTideError('tide736.net へのアクセスに失敗しました（時間をおいて再試行してください）');
   }
 }
+
+function setTideProgress(msg){
+  const el = document.getElementById('tide-content');
+  if(el) el.innerHTML = `<div id="tide-loading">${msg}</div>`;
+}
+
+const PREF_NAMES = {
+  1:'北海道',2:'青森',3:'岩手',4:'宮城',5:'秋田',6:'山形',7:'福島',8:'茨城',
+  12:'千葉',13:'東京',14:'神奈川',15:'新潟',16:'富山',17:'石川',18:'福井',
+  22:'静岡',23:'愛知',24:'三重',26:'京都',27:'大阪',28:'兵庫',30:'和歌山',
+  31:'鳥取',32:'島根',33:'岡山',34:'広島',35:'山口',36:'徳島',37:'香川',
+  38:'愛媛',39:'高知',40:'福岡',41:'佐賀',42:'長崎',43:'熊本',44:'大分',
+  45:'宮崎',46:'鹿児島',47:'沖縄'
+};
+function jpName(pc){ return PREF_NAMES[pc]||('県コード'+pc); }
 
 function parseTideDay(r){
   const chart = r.tide.chart;
