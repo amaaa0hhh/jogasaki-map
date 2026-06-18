@@ -164,10 +164,10 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bor
     </div>
     <div id="map-btns">
       <div class="coord-row">
-        <input class="coord-inp" type="text" id="inp-coord" placeholder="34.8813563, 139.1320935" style="flex:1;">
+        <input class="coord-inp" type="text" id="inp-coord" placeholder="(34.8813563, 139.1320935)" style="flex:1;">
         <button class="coord-btn" onclick="selectCustom()">決定</button>
       </div>
-      <div class="coord-hint">Googleマップで場所を長押し→座標をコピー→貼り付けて決定（緯度, 経度）　<a href="#" onclick="window.TIDE_DEBUG=!window.TIDE_DEBUG;this.textContent=window.TIDE_DEBUG?'[DEBUG ON]':'[debug]';return false;" style="color:var(--cyan);">[debug]</a></div>
+      <div class="coord-hint">Googleマップで場所を長押し→座標をコピー→貼り付けて決定（緯度, 経度）</div>
     </div>
     <div class="sl-bar">
       <div class="sl-row">
@@ -197,7 +197,6 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bor
             <div id="pt-tide-port"></div>
           </div>
         </div>
-        <div id="debug-area" style="display:none;"></div>
       </div>
 
       <!-- 潮汐 -->
@@ -503,32 +502,28 @@ async function fetchTide(lat, lng){
     const best = nh.port, bestD = nh.dist;
     if(!best){ showTideError('対象地点に対応する港が見つかりません'); TIDE_DATA=null; return; }
 
-    // デバッグ: 取得した近隣港トップ10を専用領域に表示（消えない場所）
-    if(window.TIDE_DEBUG){
-      const ranked = [...HARBOR_CACHE]
-        .map(p=>({name:p[4], pc:p[0], hc:p[1], d:dist(lat,lng,p[2],p[3]), lat:p[2], lng:p[3]}))
-        .sort((a,b)=>a.d-b.d).slice(0,10);
-      let dbg = '<div style="font-size:11px;color:#7fff7f;padding:10px;background:rgba(0,0,0,.5);border-radius:8px;margin-top:8px;line-height:1.7;">';
-      dbg += `<b style="color:#00d4ff;">DEBUG 取得港数:${HARBOR_CACHE.length}</b><br>`;
-      dbg += `構築済み県:${Object.keys(PREF_INDEX).map(jpName).join(',')}<br>━━━━━━<br>`;
-      dbg += ranked.map((r,i)=>`${i+1}. ${r.name}(${r.pc}-${r.hc}) <b>${r.d.toFixed(1)}km</b> [${r.lat.toFixed(3)},${r.lng.toFixed(3)}]`).join('<br>');
-      dbg += '</div>';
-      const dbgEl = document.getElementById('debug-area');
-      if(dbgEl){ dbgEl.innerHTML = dbg; dbgEl.style.display='block'; }
-      console.log('=== TIDE DEBUG ===');
-      console.log('取得港数:', HARBOR_CACHE.length);
-      console.table(ranked);
-    }
-
     if(bestD > 80){
       showTideError(`最寄りの潮汐観測点（${best[4]}）まで約${bestD}kmあり、\n潮汐データが不正確なため非表示としています`);
       TIDE_DATA=null; TIDE_PORT=null;
       return;
     }
 
-    // Step4: 最寄り港の潮汐を取得
-    const finalR = await fetchJSON(tideUrl(best[0], best[1], today));
-    if(!finalR || finalR.status!==1) throw new Error('潮汐取得失敗');
+    // Step4: 最寄り港の潮汐を取得（失敗時は近い順に最大3港リトライ）
+    const nearList = [...HARBOR_CACHE]
+      .map(p=>({p, d:dist(lat,lng,p[2],p[3])}))
+      .sort((a,b)=>a.d-b.d)
+      .slice(0,3)
+      .map(x=>x.p);
+
+    let finalR = null;
+    for(const cand of nearList){
+      try{
+        const r = await fetchJSON(tideUrl(cand[0], cand[1], today));
+        if(r && r.status===1){ finalR = r; break; }
+      }catch(e){ /* 次の港へ */ }
+    }
+    if(!finalR) throw new Error('潮汐取得失敗');
+
     const fp = finalR.tide.port;
     const realDist = Math.round(dist(lat, lng, dm2deg(fp.latitude), dm2deg(fp.longitude)));
 
@@ -835,8 +830,11 @@ function cdir(d){
 function selectCustom(){
   const raw = document.getElementById('inp-coord').value.trim();
   // Googleマップ形式「34.8813563, 139.1320935」やスペース区切りに対応
-  // 全角カンマ・余分な空白も許容
-  const cleaned = raw.replace(/[、，]/g, ',').replace(/\s+/g,' ').trim();
+  // 括弧つき「(24.8077593, 125.1455741)」、全角カンマ・余分な空白も許容
+  const cleaned = raw
+    .replace(/[（）()【】「」\[\]]/g, '')
+    .replace(/[、，]/g, ',')
+    .replace(/\s+/g,' ').trim();
   let parts;
   if(cleaned.includes(',')){
     parts = cleaned.split(',').map(s=>s.trim());
