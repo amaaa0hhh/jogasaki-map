@@ -475,6 +475,10 @@ function renderDebugPorts(lat, lng){
   let h = '<div style="font-size:11px;color:#7fff7f;padding:10px;background:rgba(0,0,0,.5);border-radius:8px;margin-top:8px;line-height:1.6;">';
   h += `<b style="color:#00d4ff;">DEBUG 取得港数:${HARBOR_CACHE.length}</b>　`;
   h += `構築済み県:${Object.keys(PREF_INDEX).map(jpName).join(',')}<br>`;
+  const yc = TIDE_YEST?TIDE_YEST.tideArr.length:0;
+  const tc = TIDE_DATA?TIDE_DATA.tideArr.length:0;
+  const mc = TIDE_TMRW?TIDE_TMRW.tideArr.length:0;
+  h += `<span style="color:#f5a623;">潮位点数 昨日:${yc} 今日:${tc} 明日:${mc}</span><br>`;
   h += '<span style="color:#7da8c8;">▼ 港をタップでその地点に移動</span><br>━━━━━━<br>';
   h += ranked.map((r,i)=>
     `<a href="#" onclick="selectDebugPort(${r.lat},${r.lng},'${r.name}');return false;" `
@@ -533,10 +537,7 @@ async function fetchTide(lat, lng){
     const best = nh.port, bestD = nh.dist;
     if(!best){ showTideError('対象地点に対応する港が見つかりません'); TIDE_DATA=null; return; }
 
-    // デバッグ表示: 近隣港トップ10をタップ選択可能なリストで表示
-    if(window.TIDE_DEBUG){
-      renderDebugPorts(lat, lng);
-    } else {
+    if(!window.TIDE_DEBUG){
       const dbgEl = document.getElementById('debug-area');
       if(dbgEl){ dbgEl.style.display='none'; dbgEl.innerHTML=''; }
     }
@@ -582,6 +583,11 @@ async function fetchTide(lat, lng){
     renderTide();
     updatePortLabel();
 
+    // デバッグ表示（全データ取得後）
+    if(window.TIDE_DEBUG){
+      renderDebugPorts(lat, lng);
+    }
+
   } catch(e) {
     console.error('tide fetch error:', e);
     showTideError('tide736.net へのアクセスに失敗しました（時間をおいて再試行してください）');
@@ -607,11 +613,12 @@ function parseTideDay(r){
   const chart = r.tide.chart;
   const dateKey = Object.keys(chart)[0];
   const day = chart[dateKey];
+  // tide736のunixはミリ秒単位（13桁）。そのまま使用
   // tide: 20分刻みの潮位配列
-  const tideArr = (day.tide||[]).map(t=>({ ms: t.unix, cm: t.cm, time: t.time }));
+  const tideArr = (day.tide||[]).map(t=>({ ms: Number(t.unix), cm: t.cm, time: t.time }));
   // flood / edd
-  const floods = (day.flood||[]).map(t=>({ ms: t.unix, cm: t.cm, time: t.time, type:'hi' }));
-  const edds   = (day.edd||[]).map(t=>({ ms: t.unix, cm: t.cm, time: t.time, type:'lo' }));
+  const floods = (day.flood||[]).map(t=>({ ms: Number(t.unix), cm: t.cm, time: t.time, type:'hi' }));
+  const edds   = (day.edd||[]).map(t=>({ ms: Number(t.unix), cm: t.cm, time: t.time, type:'lo' }));
   const extrema = [...floods, ...edds].sort((a,b)=>a.ms-b.ms);
   // moon
   const moon = day.moon || {};
