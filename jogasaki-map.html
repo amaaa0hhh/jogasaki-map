@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>城ヶ崎 磯マップ</title>
+<title>磯マップ</title>
 <style>
 :root{
   --bg:#07101f;--panel:#0d1e35;--card:#112240;
@@ -16,28 +16,43 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,'Noto Sans JP','Helvetica Neue',sans-serif;}
 #root{display:flex;flex-direction:column;height:100dvh;}
 
-/* HEADER */
-#hdr{display:flex;align-items:center;gap:10px;padding:10px 14px;
+#hdr{display:flex;align-items:center;gap:8px;padding:8px 12px;
   background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;}
-#hdr h1{font-size:13px;font-weight:700;line-height:1.4;flex:1;}
-#hdr p{font-size:10px;color:var(--muted);}
+#hdr-title{font-size:12px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#hdr-coord{font-size:10px;color:var(--muted);margin-top:1px;}
 #now{background:rgba(0,212,255,0.12);border:1px solid var(--border);border-radius:6px;
-  padding:4px 8px;font-size:11px;color:var(--cyan);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  padding:4px 8px;font-size:11px;color:var(--cyan);white-space:nowrap;flex-shrink:0;}
 
-/* TABS */
 #tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;}
 .tab{flex:1;padding:10px 4px;text-align:center;font-size:12px;cursor:pointer;
-  border:none;border-bottom:2px solid transparent;color:var(--muted);background:none;transition:all .2s;}
+  border:none;border-bottom:2px solid transparent;color:var(--muted);background:none;}
 .tab.on{color:var(--cyan);border-bottom-color:var(--cyan);}
 
-/* PAGES */
 #content{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;}
 .page{display:none;flex:1;flex-direction:column;min-height:0;}
 .page.on{display:flex;}
 
-/* SHARED SLIDER */
-.sl-bar{padding:10px 14px 12px;background:rgba(7,16,31,0.95);
-  border-top:1px solid var(--border);flex-shrink:0;}
+/* MAP */
+#map-wrap{flex:1;position:relative;min-height:0;overflow:hidden;}
+#gmap{width:100%;height:100%;border:none;display:block;}
+
+#map-btns{padding:10px 12px;background:rgba(7,16,31,0.92);border-top:1px solid var(--border);flex-shrink:0;}
+.coord-row{display:flex;gap:6px;align-items:center;margin-bottom:8px;}
+.coord-lbl{font-size:10px;color:var(--muted);white-space:nowrap;}
+.coord-inp{
+  flex:1;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;
+  padding:7px 8px;color:var(--text);font-size:13px;min-width:0;-webkit-appearance:none;
+  -moz-appearance:textfield;
+}
+.coord-inp:focus{outline:none;border-color:var(--cyan);}
+.coord-btn{
+  background:var(--cyan);color:#07101f;border:none;border-radius:6px;
+  padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.coord-hint{font-size:10px;color:var(--muted);}
+
+/* SLIDER */
+.sl-bar{padding:10px 14px 12px;background:rgba(7,16,31,0.95);border-top:1px solid var(--border);flex-shrink:0;}
 .sl-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
 .sl-label{font-size:10px;color:var(--muted);}
 .sl-time{font-size:13px;color:var(--cyan);font-weight:600;font-variant-numeric:tabular-nums;}
@@ -48,92 +63,73 @@ input[type=range]{
 input[type=range]::-webkit-slider-thumb{
   -webkit-appearance:none;width:22px;height:22px;border-radius:50%;
   background:var(--cyan);box-shadow:0 0 10px rgba(0,212,255,.6);}
-input[type=range]::-moz-range-thumb{
-  width:22px;height:22px;border-radius:50%;border:none;background:var(--cyan);}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;border:none;background:var(--cyan);}
 .sl-ticks{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:5px;}
-
-/* MAP PAGE */
-#gmap{width:100%;flex:1;border:none;min-height:0;}
-#spot-chips{display:flex;gap:8px;padding:8px 12px;background:rgba(7,16,31,0.9);
-  border-top:1px solid var(--border);flex-wrap:wrap;flex-shrink:0;}
-.chip{display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:20px;
-  border:1px solid;font-size:11px;cursor:pointer;background:rgba(7,16,31,0.7);transition:all .2s;}
-.chip.tera{border-color:#4fa3e0;color:#4fa3e0;}.chip.tera.sel{background:rgba(79,163,224,.25);}
-.chip.haka{border-color:var(--coral);color:var(--coral);}.chip.haka.sel{background:rgba(255,107,107,.25);}
-.chip.temple{border-color:var(--amber);color:var(--amber);}.chip.temple.sel{background:rgba(245,166,35,.2);}
 
 /* DATA PAGE */
 #data-scroll{flex:1;overflow-y:auto;padding:12px;min-height:0;}
 #data-scroll::-webkit-scrollbar{display:none;}
 
-/* カード共通 */
 .scard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
-.scard h3{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px;}
-.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block;}
 
-/* セクションラベル */
-.sec-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--muted);padding:10px 0 5px;border-top:1px solid rgba(255,255,255,.07);margin-top:4px;width:100%;}
+/* 選択ポイントヘッダー */
+#pt-header{display:flex;align-items:flex-start;gap:10px;}
+#pt-icon{font-size:28px;flex-shrink:0;}
+#pt-info{flex:1;}
+#pt-name{font-size:15px;font-weight:700;margin-bottom:3px;}
+#pt-coord{font-size:10px;color:var(--muted);}
+#pt-tide-port{font-size:11px;color:var(--purple);margin-top:4px;}
 
-/* コンパス行（潮流・風・波 共通） */
-.compass-row{display:flex;align-items:center;gap:12px;
-  background:rgba(0,0,0,.2);border-radius:8px;padding:9px 10px;}
-.cring,.cring2,.cring3{width:50px;height:50px;border-radius:50%;position:relative;flex-shrink:0;}
-.cring {border:1.5px solid rgba(127,255,127,.3);}
-.cring2{border:1.5px solid rgba(255,159,67,.3);}
-.cring3{border:1.5px solid rgba(100,180,255,.3);}
-.carr,.carr2,.carr3{position:absolute;top:50%;left:50%;width:3px;height:18px;
+/* セクション */
+.sec{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+.sec-hd{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+
+/* コンパス行 */
+.c-row{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.2);border-radius:8px;padding:9px 10px;}
+.cring{width:50px;height:50px;border-radius:50%;position:relative;flex-shrink:0;}
+.cring.a{border:1.5px solid rgba(255,159,67,.35);}
+.cring.g{border:1.5px solid rgba(127,255,127,.35);}
+.cring.b{border:1.5px solid rgba(100,180,255,.35);}
+.cring.p{border:1.5px solid rgba(192,132,252,.35);}
+.carr{position:absolute;top:50%;left:50%;width:3px;height:18px;
   transform-origin:bottom center;margin-left:-1.5px;margin-top:-18px;border-radius:2px 2px 0 0;transition:transform .5s;}
-.carr{background:var(--green);}.carr2{background:var(--amber);}.carr3{background:var(--blue);}
-.cdot,.cdot2,.cdot3{position:absolute;top:50%;left:50%;width:5px;height:5px;
-  border-radius:50%;transform:translate(-50%,-50%);}
-.cdot{background:var(--green);}.cdot2{background:var(--amber);}.cdot3{background:var(--blue);}
-.cv-green .big{font-size:22px;font-weight:700;color:var(--green);}
-.cv-amber .big{font-size:22px;font-weight:700;color:var(--amber);}
-.cv-blue  .big{font-size:22px;font-weight:700;color:var(--blue);}
-.cv-purple .big{font-size:22px;font-weight:700;color:var(--purple);}
-.cv-green .sub,.cv-amber .sub,.cv-blue .sub,.cv-purple .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.cdot{position:absolute;top:50%;left:50%;width:5px;height:5px;border-radius:50%;transform:translate(-50%,-50%);}
+.cring.a .carr,.cring.a .cdot{background:var(--amber);}
+.cring.g .carr,.cring.g .cdot{background:var(--green);}
+.cring.b .carr,.cring.b .cdot{background:var(--blue);}
+.cring.p .carr,.cring.p .cdot{background:var(--purple);}
+.cv .big{font-size:22px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;}
+.cv .sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.a-txt{color:var(--amber);}.g-txt{color:var(--green);}.b-txt{color:var(--blue);}.p-txt{color:var(--purple);}
 
-/* ── 潮汐インライン行 ── */
-.tide-row{display:flex;align-items:center;gap:12px;
-  background:rgba(0,0,0,.2);border-radius:8px;padding:9px 10px;}
-
-/* 上げ/下げアイコン（60×50の丸い枠）*/
-.tide-icon-wrap{
-  width:50px;height:50px;border-radius:50%;
-  border:1.5px solid rgba(192,132,252,.35);
-  display:flex;align-items:center;justify-content:center;
-  flex-shrink:0;font-size:24px;line-height:1;
-}
-
-/* 潮汐数値エリア */
-.tide-vals{display:flex;flex-direction:column;gap:2px;flex:1;}
+/* 潮汐インライン */
+.tide-row{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.2);border-radius:8px;padding:9px 10px;margin-bottom:8px;}
+.tide-icon{width:50px;height:50px;border-radius:50%;border:1.5px solid rgba(192,132,252,.35);
+  display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+.tide-vals{flex:1;min-width:0;}
 .tide-main{font-size:22px;font-weight:700;color:var(--purple);font-variant-numeric:tabular-nums;line-height:1;}
-.tide-sub{font-size:11px;color:var(--muted);line-height:1.5;}
-.tide-sub span{color:var(--text);font-weight:600;}
+.tide-badge{display:inline-block;font-size:10px;font-weight:700;vertical-align:middle;
+  background:rgba(192,132,252,.12);border:1px solid rgba(192,132,252,.3);
+  color:var(--purple);border-radius:10px;padding:1px 7px;margin-left:6px;}
+.tide-sub{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.7;}
+.tide-sub b{color:var(--text);font-weight:600;}
 
-/* 潮名バッジ */
-.tide-badge{
-  font-size:11px;font-weight:700;
-  background:rgba(192,132,252,0.12);border:1px solid rgba(192,132,252,.3);
-  color:var(--purple);border-radius:12px;padding:2px 8px;white-space:nowrap;
-}
+/* 満干潮テーブル */
+.hl-table{width:100%;border-collapse:collapse;margin-top:10px;}
+.hl-table th{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+  padding:4px 6px;text-align:center;border-bottom:1px solid rgba(255,255,255,.06);}
+.hl-table td{font-size:13px;font-weight:600;padding:6px 6px;text-align:center;font-variant-numeric:tabular-nums;}
+.hl-table .hi td{color:var(--blue);}
+.hl-table .lo td{color:#7fb8a0;}
+.hl-table .cur td{background:rgba(0,212,255,.07);}
 
-/* 海況・水深グリッド */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;}
-.kv{background:rgba(0,0,0,.25);border-radius:8px;padding:9px 10px;}
-.kv .k{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
-.kv .v{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;}
-.kv .u{font-size:10px;color:var(--muted);}
+/* 取得不可 */
+.unavail{background:rgba(0,0,0,.2);border-radius:8px;padding:12px;font-size:12px;color:var(--muted);text-align:center;}
 
-.note{background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.25);border-radius:8px;
-  padding:9px 11px;font-size:11px;color:#f5c842;margin-top:10px;line-height:1.6;}
-.note strong{font-weight:700;}
-.src{font-size:9px;color:var(--muted);line-height:1.8;margin-top:10px;}
-.depth-bar{height:13px;border-radius:5px;
-  background:linear-gradient(to right,#c8e6ff,#7bb8e8 15%,#4a8cbf 35%,#2a6090 55%,#1a3f6f 75%,#0d2545 90%,#060f1e);
-  margin:8px 0 5px;}
-.dt{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);}
+.note{background:rgba(0,0,0,.18);border-radius:8px;padding:8px 10px;font-size:10px;color:var(--muted);margin-top:6px;line-height:1.6;}
+
+/* ローディング */
+#tide-loading{text-align:center;padding:16px;font-size:11px;color:var(--muted);}
 
 #st{padding:5px 14px;background:var(--bg);border-top:1px solid var(--border);
   font-size:10px;color:var(--muted);display:flex;justify-content:space-between;flex-shrink:0;}
@@ -144,16 +140,16 @@ input[type=range]::-moz-range-thumb{
 <div id="root">
 
 <div id="hdr">
-  <div style="font-size:22px">🌊</div>
-  <div style="flex:1">
-    <h1>城ヶ崎 磯マップ｜寺下・墓下</h1>
-    <p>静岡県伊東市富戸 ／ 城ヶ崎海岸・蓮着寺周辺</p>
+  <div style="font-size:22px;flex-shrink:0">🌊</div>
+  <div style="flex:1;min-width:0;">
+    <div id="hdr-title">緯度・経度を入力してポイントを選択</div>
+    <div id="hdr-coord">-- 緯度 / -- 経度</div>
   </div>
   <div id="now">--/-- --:--</div>
 </div>
 
 <div id="tabs">
-  <button class="tab on" onclick="switchTab('map')">🗺 地図</button>
+  <button class="tab on" onclick="switchTab('map')">🗺 地図・選択</button>
   <button class="tab"    onclick="switchTab('data')">📊 潮流・潮汐</button>
 </div>
 
@@ -161,13 +157,20 @@ input[type=range]::-moz-range-thumb{
 
   <!-- MAP PAGE -->
   <div class="page on" id="map-page">
-    <iframe id="gmap"
-      src="https://maps.google.com/maps?q=34.8854,139.1366&z=16&t=k&output=embed&hl=ja"
-      allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-    <div id="spot-chips">
-      <div class="chip tera sel" onclick="jumpMap(34.8858,139.1360,this)">🔵 寺下の磯</div>
-      <div class="chip haka"    onclick="jumpMap(34.8850,139.1372,this)">🔴 墓下の磯</div>
-      <div class="chip temple"  onclick="jumpMap(34.8868,139.1352,this)">🟡 蓮着寺(P)</div>
+    <div id="map-wrap">
+      <iframe id="gmap"
+        src="https://maps.google.com/maps?q=34.885,139.137&z=13&t=k&output=embed&hl=ja"
+        allowfullscreen loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
+    <div id="map-btns">
+      <div class="coord-row">
+        <span class="coord-lbl">緯度</span>
+        <input class="coord-inp" type="number" id="inp-lat" placeholder="34.8858" step="0.0001">
+        <span class="coord-lbl">経度</span>
+        <input class="coord-inp" type="number" id="inp-lng" placeholder="139.1360" step="0.0001">
+        <button class="coord-btn" onclick="selectCustom()">決定</button>
+      </div>
+      <div class="coord-hint">Googleマップで場所を長押し→座標コピー→上に入力して決定</div>
     </div>
     <div class="sl-bar">
       <div class="sl-row">
@@ -187,110 +190,62 @@ input[type=range]::-moz-range-thumb{
   <div class="page" id="data-page">
     <div id="data-scroll">
 
-      <!-- 寺下の磯 -->
+      <!-- ポイント情報 -->
       <div class="scard">
-        <h3><span class="dot" style="background:#4fa3e0"></span>寺下の磯</h3>
-        <div class="g2">
-          <div class="kv"><div class="k">水深(目安)</div><div class="v">5–12<span class="u"> m</span></div></div>
-          <div class="kv"><div class="k">海況</div><div class="v" id="t-wave">--</div></div>
-        </div>
-
-        <!-- 潮汐 -->
-        <div class="sec-label">🌊 潮汐</div>
-        <div class="tide-row">
-          <div class="tide-icon-wrap" id="t-tide-icon">🌊</div>
-          <div class="tide-vals">
-            <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
-              <div class="tide-main" id="t-tide-ht">-- cm</div>
-              <div class="tide-badge" id="t-tide-name">--潮</div>
-            </div>
-            <div class="tide-sub" id="t-tide-sub">---</div>
+        <div id="pt-header">
+          <div id="pt-icon">📍</div>
+          <div id="pt-info">
+            <div id="pt-name">ポイント未選択</div>
+            <div id="pt-coord">地図タブで座標を入力・決定してください</div>
+            <div id="pt-tide-port"></div>
           </div>
         </div>
-
-        <!-- 潮流 -->
-        <div class="sec-label">🌊 潮流</div>
-        <div class="compass-row">
-          <div class="cring2"><div class="carr2" id="tc-arr"></div><div class="cdot2"></div></div>
-          <div class="cv-amber"><div class="big" id="t-cs">-- kn</div><div class="sub" id="t-cd">---</div></div>
-        </div>
-
-        <!-- 風 -->
-        <div class="sec-label">💨 風</div>
-        <div class="compass-row">
-          <div class="cring"><div class="carr" id="tw-arr"></div><div class="cdot"></div></div>
-          <div class="cv-green"><div class="big" id="t-ws">-- m/s</div><div class="sub" id="t-wdir">---</div></div>
-        </div>
-
-        <!-- 波 -->
-        <div class="sec-label">🌀 波</div>
-        <div class="compass-row">
-          <div class="cring3"><div class="carr3" id="tw2-arr"></div><div class="cdot3"></div></div>
-          <div class="cv-blue"><div class="big" id="t-wh">-- m</div><div class="sub" id="t-wd2">---</div></div>
-        </div>
-
-        <div class="note"><strong>⚠ 釣り禁止：</strong>ダイビングエリアのため <strong>7:00〜日没まで入禁</strong>。北東風に弱い。</div>
       </div>
 
-      <!-- 墓下の磯 -->
-      <div class="scard">
-        <h3><span class="dot" style="background:var(--coral)"></span>墓下の磯</h3>
-        <div class="g2">
-          <div class="kv"><div class="k">水深(目安)</div><div class="v">3–8<span class="u"> m</span></div></div>
-          <div class="kv"><div class="k">海況</div><div class="v" id="h-wave">--</div></div>
+      <!-- 潮汐 -->
+      <div class="sec">
+        <div class="sec-hd" id="tide-sec-hd">🌊 潮汐</div>
+        <div id="tide-content">
+          <div class="unavail"><span style="font-size:20px;display:block;margin-bottom:4px;">📍</span>ポイントを選択すると<br>最寄り港の潮汐データを表示します</div>
         </div>
-
-        <!-- 潮汐 -->
-        <div class="sec-label">🌊 潮汐</div>
-        <div class="tide-row">
-          <div class="tide-icon-wrap" id="h-tide-icon">🌊</div>
-          <div class="tide-vals">
-            <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
-              <div class="tide-main" id="h-tide-ht">-- cm</div>
-              <div class="tide-badge" id="h-tide-name">--潮</div>
-            </div>
-            <div class="tide-sub" id="h-tide-sub">---</div>
-          </div>
-        </div>
-
-        <!-- 潮流 -->
-        <div class="sec-label">🌊 潮流</div>
-        <div class="compass-row">
-          <div class="cring2"><div class="carr2" id="hc-arr"></div><div class="cdot2"></div></div>
-          <div class="cv-amber"><div class="big" id="h-cs">-- kn</div><div class="sub" id="h-cd">---</div></div>
-        </div>
-
-        <!-- 風 -->
-        <div class="sec-label">💨 風</div>
-        <div class="compass-row">
-          <div class="cring"><div class="carr" id="hw-arr"></div><div class="cdot"></div></div>
-          <div class="cv-green"><div class="big" id="h-ws">-- m/s</div><div class="sub" id="h-wdir">---</div></div>
-        </div>
-
-        <!-- 波 -->
-        <div class="sec-label">🌀 波</div>
-        <div class="compass-row">
-          <div class="cring3"><div class="carr3" id="hw2-arr"></div><div class="cdot3"></div></div>
-          <div class="cv-blue"><div class="big" id="h-wh">-- m</div><div class="sub" id="h-wd2">---</div></div>
-        </div>
-
-        <div class="note">西風・南風に強い。北東風に弱い。潮通し良好。蓮着寺自然研究路から徒歩5分。</div>
+        <div class="note" id="tide-note" style="display:none;"></div>
       </div>
 
-      <!-- 水深凡例 -->
-      <div class="scard">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">水深カラースケール(参考)</div>
-        <div class="depth-bar"></div>
-        <div class="dt"><span>0m</span><span>5m</span><span>10m</span><span>20m</span><span>30m+</span></div>
-        <div class="src">
-          潮汐: 天文推算（伊東港 調和定数）　気象: Open-Meteo Marine API<br>
-          潮流は海洋モデル推定値。航行には海上保安庁刊行潮汐表を使用のこと。
+      <!-- 潮流 -->
+      <div class="sec">
+        <div class="sec-hd">🌊 潮流</div>
+        <div id="cur-content">
+          <div class="unavail">ポイント未選択</div>
+        </div>
+        <div class="note">Open-Meteo Marine API（海洋モデル推定値）</div>
+      </div>
+
+      <!-- 風 -->
+      <div class="sec">
+        <div class="sec-hd">💨 風</div>
+        <div id="wind-content">
+          <div class="unavail">ポイント未選択</div>
+        </div>
+        <div class="note">Open-Meteo Forecast API</div>
+      </div>
+
+      <!-- 波 -->
+      <div class="sec">
+        <div class="sec-hd">🌀 波</div>
+        <div id="wave-content">
+          <div class="unavail">ポイント未選択</div>
         </div>
       </div>
 
-    </div><!-- /data-scroll -->
+      <!-- 海況 -->
+      <div class="sec">
+        <div class="sec-hd">☁️ 海況</div>
+        <div id="cond-content" style="font-size:28px;font-weight:700;padding:4px 0;color:var(--muted);">--</div>
+      </div>
 
-    <!-- スライダー固定フッター -->
+    </div>
+
+    <!-- スライダー -->
     <div class="sl-bar">
       <div class="sl-row">
         <span class="sl-label">表示時刻</span>
@@ -305,279 +260,494 @@ input[type=range]::-moz-range-thumb{
     </div>
   </div>
 
-</div><!-- /content -->
+</div>
 
 <div id="st">
-  <span id="st-l">初期化中…</span>
-  <span>📡 Open-Meteo ／ 天文推算</span>
+  <span id="st-l">ポイントを選択してください</span>
+  <span>📡 tide736.net ／ Open-Meteo</span>
 </div>
-</div><!-- /root -->
+</div>
 
 <script>
-// ════════════════════════════════
-//  潮汐推算エンジン（伊東港・寺下の磯）
-//  2026/6/18実測値で最適化済み調和定数
-//  精度: 時刻±3分、潮位±10cm
-//  実測: 00:39(100cm)/05:59(156cm)/13:00(5cm)/20:19(150cm)
-// ════════════════════════════════
-const CONST = [
-  ['M2',  36.3,  54.9, 28.9841042],
-  ['S2',  32.0, 359.5, 30.0000000],
-  ['N2',   8.2,  99.8, 28.4397295],
-  ['K2',   3.9,   4.9, 30.0821373],
-  ['K1',  48.7,  44.6, 15.0410686],
-  ['O1',   5.8,  42.8, 13.9430356],
-  ['P1',   1.9, 155.1, 14.9589314],
-  ['Q1',   2.2,  99.1, 13.3986609],
-  ['M4',   1.5,  60.5, 57.9682084],
-  ['MS4',  3.5, 155.6, 58.9841042],
+// ══════════════════════════════════════════════════
+//  tide736.net 全国代表港リスト
+//  [pc, hc, lat, lng, name]
+//  APIレスポンスのlinkで周辺736港が取得できるため
+//  各都道府県1〜2港の代表港のみ内蔵し、APIで補完
+// ══════════════════════════════════════════════════
+const REP_PORTS = [
+  // 北海道
+  [1,1, 45.59,141.94,'稚内'],[1,10,43.93,141.64,'留萌'],[1,15,43.19,140.99,'小樽'],
+  [1,20,42.33,140.99,'室蘭'],[1,25,42.63,141.60,'苫小牧'],[1,30,42.98,144.38,'釧路'],
+  [1,35,44.02,144.27,'網走'],[1,40,41.78,140.73,'函館'],
+  // 青森
+  [2,1, 40.82,140.73,'青森'],[2,5, 40.53,141.53,'八戸'],
+  // 岩手
+  [3,1, 39.74,141.97,'宮古'],[3,5, 38.93,141.55,'大船渡'],
+  // 宮城
+  [4,1, 38.43,141.31,'石巻'],[4,5, 38.26,141.02,'仙台塩釜'],
+  // 秋田
+  [5,1, 40.00,139.97,'能代'],[5,5, 39.75,140.11,'秋田'],
+  // 山形
+  [6,1, 38.92,139.83,'酒田'],
+  // 福島
+  [7,1, 37.05,140.89,'小名浜'],
+  // 茨城
+  [8,1, 36.45,140.60,'大洗'],[8,5, 35.97,140.58,'鹿島'],
+  // 千葉
+  [12,1,35.73,140.87,'銚子'],[12,5,35.30,140.03,'館山'],
+  // 東京
+  [13,1,35.65,139.78,'東京'],[13,5,34.12,139.53,'三宅島'],[13,8,33.10,139.78,'八丈島'],
+  // 神奈川
+  [14,1,35.45,139.64,'横浜'],
+  // 新潟
+  [15,1,37.97,139.05,'新潟'],[15,5,37.49,138.25,'佐渡'],
+  // 富山
+  [16,1,36.76,137.21,'富山'],
+  // 石川
+  [17,1,36.55,136.65,'金沢'],[17,5,37.49,136.98,'輪島'],
+  // 福井
+  [18,1,36.06,136.15,'敦賀'],
+  // 静岡
+  [22,1,35.16,138.64,'清水'],[22,5,34.97,139.10,'伊東'],[22,8,34.60,138.23,'御前崎'],
+  // 愛知
+  [23,1,34.74,137.38,'豊橋'],[23,5,35.08,136.88,'名古屋'],
+  // 三重
+  [24,1,34.48,136.82,'鳥羽'],[24,5,33.57,136.53,'尾鷲'],
+  // 京都
+  [26,1,35.58,135.40,'舞鶴'],
+  // 大阪
+  [27,1,34.65,135.43,'大阪'],
+  // 兵庫
+  [28,1,34.68,135.20,'神戸'],[28,5,34.77,134.33,'姫路'],
+  // 和歌山
+  [30,1,34.23,135.16,'和歌山'],[30,5,33.55,135.92,'新宮'],
+  // 鳥取
+  [31,1,35.50,134.23,'鳥取'],
+  // 島根
+  [32,1,35.55,133.24,'境'],[32,5,35.48,132.56,'浜田'],
+  // 岡山
+  [33,1,34.49,133.93,'宇野'],
+  // 広島
+  [34,1,34.38,132.47,'広島'],
+  // 山口
+  [35,1,33.97,130.95,'下関'],[35,5,34.03,131.56,'徳山'],
+  // 徳島
+  [36,1,34.07,134.56,'徳島'],
+  // 香川
+  [37,1,34.35,134.06,'高松'],
+  // 愛媛
+  [38,1,33.84,132.77,'松山'],[38,5,33.55,132.55,'八幡浜'],
+  // 高知
+  [39,1,33.57,133.55,'高知'],
+  // 福岡
+  [40,1,33.60,130.42,'博多'],[40,5,33.88,130.85,'苅田'],
+  // 佐賀
+  [41,1,33.17,130.00,'唐津'],
+  // 長崎
+  [42,1,32.73,129.87,'長崎'],[42,5,33.10,129.72,'佐世保'],
+  // 熊本
+  [43,1,32.55,130.40,'三角'],
+  // 大分
+  [44,1,33.23,131.62,'大分'],[44,5,33.63,132.33,'臼杵'],
+  // 宮崎
+  [45,3,31.35,131.25,'油津'],[45,6,32.26,131.40,'細島'],
+  // 鹿児島
+  [46,1,31.62,130.57,'鹿児島'],[46,5,30.74,130.97,'種子島'],
+  [46,8,30.40,130.65,'屋久島'],
+  // 沖縄
+  [47,1,26.22,127.69,'那覇'],[47,5,26.17,127.72,'那覇南'],
+  [47,10,24.80,125.28,'宮古島'],[47,15,24.34,124.16,'石垣島'],
+  [47,18,24.47,122.97,'与那国島'],
+  // 奄美（鹿児島に含まれる）
+  [46,15,28.38,129.50,'奄美大島'],
 ];
-const MSL = 99.3;
-const EPOCH = Date.UTC(2000, 0, 1, 0, 0, 0);
 
-function tideH(ms) {
-  const hrs = (ms - EPOCH) / 3600000;
-  let h = MSL;
-  for (const [, amp, phase, speed] of CONST)
-    h += amp * Math.cos((speed * hrs - phase) * Math.PI / 180);
-  return Math.round(h);
+// 港キャッシュ（APIのlinkで拡張）
+let HARBOR_CACHE = [...REP_PORTS]; // [pc, hc, lat, lng, name]
+
+// Haversine距離(km)
+function dist(lat1,lng1,lat2,lng2){
+  const R=6371, d2r=Math.PI/180;
+  const dlat=(lat2-lat1)*d2r, dlng=(lng2-lng1)*d2r;
+  const a=Math.sin(dlat/2)**2+Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dlng/2)**2;
+  return 2*Math.asin(Math.sqrt(a))*R;
 }
 
-// 10分刻みの潮位列（-36h〜+36h）
-function buildPts(now) {
-  const pts = [];
-  const base = now.getTime();
-  for (let m = -36*60; m <= 36*60; m += 10) {
-    const t = base + m * 60000;
-    pts.push({ t, h: tideH(t) });
+// 最寄り港を返す
+function nearestHarbor(lat,lng){
+  let best=null,bestD=Infinity;
+  for(const p of HARBOR_CACHE){
+    const d=dist(lat,lng,p[2],p[3]);
+    if(d<bestD){bestD=d;best=p;}
   }
-  return pts;
+  return {port:best, dist:Math.round(bestD)};
 }
 
-// 極値（満潮/干潮）検出
-function extrema(pts) {
-  const res = [];
-  for (let i = 1; i < pts.length - 1; i++) {
-    const p = pts[i-1].h, c = pts[i].h, n = pts[i+1].h;
-    if (c > p && c >= n) res.push({ ...pts[i], type: 'hi' });
-    else if (c < p && c <= n) res.push({ ...pts[i], type: 'lo' });
+// ══════════════════════════════════════════════════
+//  tide736.net API
+// ══════════════════════════════════════════════════
+let TIDE_DATA  = null; // 今日の潮汐データ
+let TIDE_TMRW  = null; // 明日の潮汐データ（深夜帯の次の転流用）
+let TIDE_PORT  = null; // 現在選択中の港情報
+
+async function fetchTide(lat, lng){
+  // Step1: 最寄り代表港を選ぶ
+  const {port, dist:d} = nearestHarbor(lat, lng);
+  if(!port){ showTideError('対象地点に対応する港が見つかりません'); return; }
+
+  const now = new Date();
+  const yr = now.getFullYear(), mn = now.getMonth()+1, dy = now.getDate();
+  const dyTmrw = new Date(now); dyTmrw.setDate(dyTmrw.getDate()+1);
+
+  const url = `https://api.tide736.net/get_tide.php?pc=${port[0]}&hc=${port[1]}&yr=${yr}&mn=${mn}&dy=${dy}&rg=day`;
+
+  try{
+    const r = await fetch(url, {mode:'cors'}).then(r=>r.json());
+    if(r.status !== 1) throw new Error(r.message);
+
+    // Step2: linkから周辺全港をキャッシュに追加
+    if(r.tide.link){
+      for(const lk of r.tide.link){
+        const key = `${lk.prefecture_code}_${lk.harbor_code}`;
+        if(!HARBOR_CACHE.find(p=>p[0]===lk.prefecture_code&&p[1]===lk.harbor_code)){
+          HARBOR_CACHE.push([lk.prefecture_code, lk.harbor_code,
+            lk.latitude, lk.longitude, lk.harbor_namej]);
+        }
+      }
+    }
+
+    // Step3: キャッシュ更新後に改めて最寄り港を再検索
+    const {port:port2, dist:d2} = nearestHarbor(lat, lng);
+
+    // Step4: 代表港と最寄り港が違う場合は再取得
+    if(port2[0] !== port[0] || port2[1] !== port[1]){
+      const url2 = `https://api.tide736.net/get_tide.php?pc=${port2[0]}&hc=${port2[1]}&yr=${yr}&mn=${mn}&dy=${dy}&rg=day`;
+      const r2 = await fetch(url2, {mode:'cors'}).then(r=>r.json());
+      if(r2.status===1){
+        TIDE_PORT = { ...r2.tide.port, _dist: d2 };
+        TIDE_DATA = parseTideDay(r2);
+        // 翌日分
+        const url3 = `https://api.tide736.net/get_tide.php?pc=${port2[0]}&hc=${port2[1]}&yr=${dyTmrw.getFullYear()}&mn=${dyTmrw.getMonth()+1}&dy=${dyTmrw.getDate()}&rg=day`;
+        const r3 = await fetch(url3, {mode:'cors'}).then(x=>x.json());
+        if(r3.status===1) TIDE_TMRW = parseTideDay(r3);
+      }
+    } else {
+      TIDE_PORT = { ...r.tide.port, _dist: d };
+      TIDE_DATA = parseTideDay(r);
+      const url2 = `https://api.tide736.net/get_tide.php?pc=${port[0]}&hc=${port[1]}&yr=${dyTmrw.getFullYear()}&mn=${dyTmrw.getMonth()+1}&dy=${dyTmrw.getDate()}&rg=day`;
+      const r2 = await fetch(url2, {mode:'cors'}).then(x=>x.json());
+      if(r2.status===1) TIDE_TMRW = parseTideDay(r2);
+    }
+
+    renderTide();
+    updatePortLabel();
+
+  } catch(e) {
+    console.error(e);
+    showTideError('tide736.net へのアクセスに失敗しました');
   }
-  return res;
 }
 
-// 月齢
-function moonAge(d) {
-  return (((d - new Date(2000,0,6,18,14,0)) / 86400000) % 29.53 + 29.53) % 29.53;
+function parseTideDay(r){
+  const chart = r.tide.chart;
+  const dateKey = Object.keys(chart)[0];
+  const day = chart[dateKey];
+  // tide: 20分刻みの潮位配列
+  const tideArr = (day.tide||[]).map(t=>({ ms: t.unix, cm: t.cm, time: t.time }));
+  // flood / edd
+  const floods = (day.flood||[]).map(t=>({ ms: t.unix, cm: t.cm, time: t.time, type:'hi' }));
+  const edds   = (day.edd||[]).map(t=>({ ms: t.unix, cm: t.cm, time: t.time, type:'lo' }));
+  const extrema = [...floods, ...edds].sort((a,b)=>a.ms-b.ms);
+  // moon
+  const moon = day.moon || {};
+  return { tideArr, extrema, moon };
 }
 
-// 潮名（月齢から）
-function tideName(ma) {
-  const t = Math.round(ma) % 30;
-  if ([0,1,14,15,28,29].includes(t)) return '大潮';
-  if ([2,3,12,13,16,17,26,27].includes(t)) return '中潮';
-  if ([4,5,20,21].includes(t)) return '小潮';
-  if ([6,22].includes(t)) return '長潮';
-  if ([7,23].includes(t)) return '若潮';
-  return '中潮';
+function showTideError(msg){
+  document.getElementById('tide-content').innerHTML =
+    `<div class="unavail"><span style="font-size:20px;display:block;margin-bottom:4px;">⚠️</span>${msg}</div>`;
 }
 
-// 指定時刻の潮汐インライン情報を計算
-function calcTideInfo(targetMs) {
-  const pts = buildPts(new Date(targetMs));
-  const exs = extrema(pts);
-  const h   = tideH(targetMs);
+function updatePortLabel(){
+  if(!TIDE_PORT) return;
+  const d = TIDE_PORT._dist || 0;
+  const name = TIDE_PORT.harbor_namej || '';
+  document.getElementById('tide-sec-hd').textContent = `🌊 潮汐（${name}港 基準 / 約${d}km）`;
+  document.getElementById('pt-tide-port').textContent = `🔭 潮汐観測点: ${name}港（約${d}km）`;
+}
 
-  // 前後の極値を探す
-  const prev = [...exs].filter(e => e.t <= targetMs).pop();
-  const next =  exs.find(e => e.t > targetMs);
+function renderTide(){
+  if(!TIDE_DATA){ showTideError('潮汐データなし'); return; }
+  const displayMs = getCurrentDisplayMs();
+  const { tideArr, extrema, moon } = TIDE_DATA;
 
-  // 上げ/下げ判定（前後の極値を比較）
-  let direction = '---';
-  let icon = '🌊';
-  let nextInfo = '';
+  // 現在時刻に最も近い潮位を線形補間
+  let cm = null;
+  for(let i=0;i<tideArr.length-1;i++){
+    if(displayMs >= tideArr[i].ms && displayMs <= tideArr[i+1].ms){
+      const ratio = (displayMs-tideArr[i].ms)/(tideArr[i+1].ms-tideArr[i].ms);
+      cm = Math.round(tideArr[i].cm + ratio*(tideArr[i+1].cm-tideArr[i].cm));
+      break;
+    }
+  }
+  if(cm===null && tideArr.length) cm = Math.round(tideArr[tideArr.length-1].cm);
 
-  if (prev && next) {
-    const rising = next.type === 'hi'; // 次が満潮 → 上げ潮
-    direction = rising ? '↑ 上げ潮' : '↓ 下げ潮';
-    icon = rising ? '⬆️' : '⬇️';
+  // 今日＋明日の極値をマージして上げ/下げを判定
+  const allExtrema = [...extrema];
+  if(TIDE_TMRW) allExtrema.push(...TIDE_TMRW.extrema);
+  allExtrema.sort((a,b)=>a.ms-b.ms);
 
-    // 経過時間計算
-    const elapsed  = Math.round((targetMs - prev.t) / 60000); // 分
-    const total    = Math.round((next.t - prev.t) / 60000);   // 分
-    const elH = Math.floor(elapsed / 60), elM = elapsed % 60;
+  const prev = [...allExtrema].filter(e=>e.ms<=displayMs).pop();
+  const next = allExtrema.find(e=>e.ms>displayMs);
 
-    // 次の転流時刻
-    const nx = new Date(next.t);
-    const nxStr = String(nx.getHours()).padStart(2,'0') + ':' + String(nx.getMinutes()).padStart(2,'0');
-    const nxLabel = next.type === 'hi' ? '満潮' : '干潮';
-    const nxH = next.h;
-
-    nextInfo = `${direction}　${elH}時間${elM}分経過 / ${Math.round(total/60)}時間周期\n次の${nxLabel}: ${nxStr}（${nxH} cm）`;
-  } else if (next) {
-    const rising = next.type === 'hi';
-    icon = rising ? '⬆️' : '⬇️';
-    direction = rising ? '↑ 上げ潮' : '↓ 下げ潮';
-    const nx = new Date(next.t);
-    const nxStr = String(nx.getHours()).padStart(2,'0') + ':' + String(nx.getMinutes()).padStart(2,'0');
-    nextInfo = `${direction}\n次の${next.type==='hi'?'満潮':'干潮'}: ${nxStr}（${next.h} cm）`;
+  let icon='🌊', dirTxt='---', nextTxt='';
+  if(prev && next){
+    const rising = next.type==='hi';
+    icon = rising?'⬆️':'⬇️';
+    const elMin = Math.round((displayMs-prev.ms)/60000);
+    const elH=Math.floor(elMin/60), elM=elMin%60;
+    const nxLabel = next.type==='hi'?'満潮':'干潮';
+    dirTxt = rising?'↑ 上げ潮':'↓ 下げ潮';
+    nextTxt = `${dirTxt}　${elH}時間${elM}分経過<br>次の${nxLabel}: <b>${next.time}（${Math.round(next.cm)} cm）</b>`;
   }
 
-  const ma = moonAge(new Date(targetMs));
-  const tname = tideName(ma) + '　月齢' + ma.toFixed(1);
+  const tideName = moon.title || '--潮';
+  const moonAge  = moon.age   ? parseFloat(moon.age).toFixed(1) : '--';
 
-  return { h, icon, nextInfo, tname };
+  // 今日の満干潮テーブル
+  const todayRows = extrema.map(e=>{
+    const isCur = prev && e.ms===prev.ms;
+    const cls = (e.type==='hi'?'hi':'lo') + (isCur?' cur':'');
+    const label = e.type==='hi'?'🔵 満潮':'🟢 干潮';
+    return `<tr class="${cls}"><td>${label}</td><td>${e.time}</td><td>${Math.round(e.cm)} cm</td></tr>`;
+  }).join('');
+
+  document.getElementById('tide-content').innerHTML = `
+    <div class="tide-row">
+      <div class="tide-icon">${icon}</div>
+      <div class="tide-vals">
+        <div>
+          <span class="tide-main">${cm!==null?cm+' cm':'-- cm'}</span>
+          <span class="tide-badge">${tideName}　月齢${moonAge}</span>
+        </div>
+        <div class="tide-sub">${nextTxt||'---'}</div>
+      </div>
+    </div>
+    ${extrema.length?`
+    <table class="hl-table">
+      <tr><th>種別</th><th>時刻</th><th>潮位</th></tr>
+      ${todayRows}
+    </table>`:''}
+  `;
+
+  // 日出没
+  const sun = TIDE_DATA.tideArr.length ? null : null;
+  const note = document.getElementById('tide-note');
+  note.style.display = 'none';
 }
 
-// サブテキストを2行で整形（\n → <br>）
-function fmtSub(s) { return s.replace(/\n/g,'<br>'); }
+// ══════════════════════════════════════════════════
+//  気象データ（Open-Meteo）
+// ══════════════════════════════════════════════════
+let WD=null, STEP=24;
+const WEATHER_CACHE = {};
 
-// ════════════════════════════════
-//  気象データ
-// ════════════════════════════════
-let WD = null, STEP = 24;
-const LAT = 34.885, LNG = 139.137;
+async function loadWeather(lat,lng){
+  const key = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
+  if(WEATHER_CACHE[key]){ WD=WEATHER_CACHE[key]; initSlider(); render(); return; }
 
-async function loadWeather() {
-  const mu = `https://marine-api.open-meteo.com/v1/marine?latitude=${LAT}&longitude=${LNG}&hourly=wave_height,wave_direction,ocean_current_velocity,ocean_current_direction&past_days=1&forecast_days=1&timezone=Asia%2FTokyo`;
-  const wu = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LNG}&hourly=wind_speed_10m,wind_direction_10m&past_days=1&forecast_days=1&timezone=Asia%2FTokyo`;
-  try {
-    const [m, w] = await Promise.all([
+  const mu=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=wave_height,wave_direction,ocean_current_velocity,ocean_current_direction&past_days=1&forecast_days=1&timezone=Asia%2FTokyo`;
+  const wu=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=wind_speed_10m,wind_direction_10m&past_days=1&forecast_days=1&timezone=Asia%2FTokyo`;
+  try{
+    const [m,w]=await Promise.all([
       fetch(mu,{mode:'cors'}).then(r=>{if(!r.ok)throw 0;return r.json();}),
       fetch(wu,{mode:'cors'}).then(r=>{if(!r.ok)throw 0;return r.json();})
     ]);
-    WD = {
-      times: m.hourly.time,
-      wh:    m.hourly.wave_height || [],
-      wdir2: m.hourly.wave_direction || [],
-      cs:    (m.hourly.ocean_current_velocity||[]).map((v,i)=>v??(0.4+0.2*Math.sin(i*0.3))),
-      cd:    (m.hourly.ocean_current_direction||[]).map((v,i)=>v??((200+i*2)%360)),
-      ws:    w.hourly.wind_speed_10m || [],
-      wd:    w.hourly.wind_direction_10m || [],
+    WD={
+      times:m.hourly.time, lat, lng,
+      wh:m.hourly.wave_height||[],
+      wdir2:m.hourly.wave_direction||[],
+      cs:(m.hourly.ocean_current_velocity||[]),
+      cd:(m.hourly.ocean_current_direction||[]),
+      ws:w.hourly.wind_speed_10m||[],
+      wd:w.hourly.wind_direction_10m||[],
     };
-    const now = new Date(); let ci = 0, md = Infinity;
+    const now=new Date(); let ci=0,md=Infinity;
     WD.times.forEach((t,i)=>{const d=Math.abs(new Date(t)-now);if(d<md){md=d;ci=i;}});
-    STEP = ci;
-    // centerIdxをグローバルに保存（render内で現在時刻基準の補間に使う）
-    WD.centerIdx = ci;
-    ['map-slider','data-slider'].forEach(id=>{
-      const sl=document.getElementById(id); sl.max=WD.times.length-1; sl.value=ci;
-    });
-    setSt('✅ リアルデータ取得完了','ok');
-  } catch(e) {
-    mock();
+    WD.centerIdx=ci;
+    WEATHER_CACHE[key]=WD;
+    setSt('✅ 気象データ取得完了','ok');
+  }catch(e){
+    mockWeather(lat,lng);
     setSt('⚠ サンプルデータ（APIアクセス不可）','warn');
   }
+  initSlider();
   render();
 }
 
-function mock() {
-  const now = new Date();
-  // 現在時刻を中心に1時間刻みで-24h〜+24hの配列を生成
-  // 現在時刻を整数時間に丸めず、分単位でそのまま中央に配置
-  const t = [];
-  const centerMs = now.getTime();
-  for(let i=-24;i<=24;i++){
-    const d = new Date(centerMs + i*3600000);
-    t.push(d.toISOString().slice(0,16));
-  }
-  WD = {
-    times: t,
-    wh:    t.map((_,i)=>+(0.3+0.25*Math.sin(i*0.31)).toFixed(2)),
-    wdir2: t.map((_,i)=>(120+i*3)%360),
-    cs:    t.map((_,i)=>+(0.5+0.3*Math.cos(i*0.21)).toFixed(2)),
-    cd:    t.map((_,i)=>Math.round((205+i*2.1)%360)),
-    ws:    t.map((_,i)=>+(2.5+2*Math.sin(i*0.26)).toFixed(1)),
-    wd:    t.map((_,i)=>Math.round((240+i*3.7)%360)),
+function mockWeather(lat,lng){
+  const now=new Date(),t=[];
+  for(let i=-24;i<=24;i++){const d=new Date(now.getTime()+i*3600000);t.push(d.toISOString().slice(0,16));}
+  WD={times:t,lat,lng,centerIdx:24,
+    wh:t.map((_,i)=>+(0.3+0.25*Math.sin(i*0.31)).toFixed(2)),
+    wdir2:t.map((_,i)=>(120+i*3)%360),
+    cs:t.map((_,i)=>+(0.5+0.3*Math.cos(i*0.21)).toFixed(2)),
+    cd:t.map((_,i)=>Math.round((205+i*2.1)%360)),
+    ws:t.map((_,i)=>+(2.5+2*Math.sin(i*0.26)).toFixed(1)),
+    wd:t.map((_,i)=>Math.round((240+i*3.7)%360)),
   };
-  STEP = 24; // インデックス24が現在時刻
+}
+
+function initSlider(){
+  if(!WD)return;
+  STEP=WD.centerIdx||24;
   ['map-slider','data-slider'].forEach(id=>{
-    const sl=document.getElementById(id); sl.max=t.length-1; sl.value=24;
+    const sl=document.getElementById(id); sl.max=WD.times.length-1; sl.value=STEP;
   });
 }
 
-function setSt(txt,cls){document.getElementById('st-l').textContent=txt;document.getElementById('st-l').className=cls;}
+function setSt(txt,cls){const e=document.getElementById('st-l');e.textContent=txt;e.className=cls;}
 
-// ════════════════════════════════
-//  描画更新
-// ════════════════════════════════
-function render() {
-  if (!WD) return;
-  const i = STEP;
-  // 現在時刻を基準にSTEPオフセットで実時刻を算出（APIの丸め誤差を排除）
-  const nowMs = Date.now();
-  // APIモード: times配列の中央インデックス(現在)を基準に補間
-  const centerIdx = WD.centerIdx !== undefined ? WD.centerIdx : Math.round((WD.times.length - 1) / 2);
-  const offsetH = i - centerIdx; // 現在からの時間オフセット
-  // 実際の表示時刻 = 現在時刻 + オフセット時間
-  const displayMs = nowMs + offsetH * 3600000;
+// ══════════════════════════════════════════════════
+//  表示時刻計算
+// ══════════════════════════════════════════════════
+function getCurrentDisplayMs(){
+  if(!WD) return Date.now();
+  const ci = WD.centerIdx||24;
+  const offsetH = STEP - ci;
+  return Date.now() + offsetH * 3600000;
+}
+
+// ══════════════════════════════════════════════════
+//  メイン描画
+// ══════════════════════════════════════════════════
+function render(){
+  if(!WD)return;
+  const displayMs = getCurrentDisplayMs();
   const t = new Date(displayMs);
-  const fmt = d => d.toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const fmt = d=>d.toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   const tStr = fmt(t);
-  document.getElementById('now').textContent = fmt(new Date());
-  document.getElementById('map-sl-time').textContent  = tStr;
-  document.getElementById('data-sl-time').textContent = tStr;
-  const pct = ((i/(WD.times.length-1))*100).toFixed(1)+'%';
-  document.getElementById('map-slider').style.setProperty('--pct',pct);
-  document.getElementById('data-slider').style.setProperty('--pct',pct);
 
-  // 潮汐（実時刻で計算）
-  const tide = calcTideInfo(displayMs);
-  ['t','h'].forEach(p => {
-    set(`${p}-tide-ht`,   tide.h + ' cm');
-    set(`${p}-tide-name`, tide.tname);
-    setH(`${p}-tide-sub`, fmtSub(tide.nextInfo));
-    set(`${p}-tide-icon`, tide.icon);
-  });
+  document.getElementById('now').textContent=fmt(new Date());
+  document.getElementById('map-sl-time').textContent=tStr;
+  document.getElementById('data-sl-time').textContent=tStr;
+  const pct=((STEP/(WD.times.length-1))*100).toFixed(1)+'%';
+  ['map-slider','data-slider'].forEach(id=>document.getElementById(id).style.setProperty('--pct',pct));
 
-  // 気象
-  const wh=WD.wh[i]??null, wd2=WD.wdir2[i]??null;
-  const cs=WD.cs[i]??null,  cd=WD.cd[i]??null;
-  const ws=WD.ws[i]??null,  wd=WD.wd[i]??null;
-  const wvl   = wh===null?'--':wh<0.3?'凪':wh<0.7?'小波':wh<1.2?'中波':wh<2?'やや荒れ':'荒れ';
-  const cskn  = cs!==null?(cs*1.944).toFixed(2)+' kn':'-- kn';
-  const cdStr = cd!==null?cdir(cd)+'('+Math.round(cd)+'°)':'---';
-  const wsStr = ws!==null?ws.toFixed(1)+' m/s':'-- m/s';
-  const wdStr = wd!==null?cdir(wd)+'('+Math.round(wd)+'°)':'---';
-  const whStr = wh!==null?wh.toFixed(2)+' m':'-- m';
-  const wd2Str= wd2!==null?cdir(wd2)+'('+Math.round(wd2)+'°)':'---';
+  const i=STEP;
+  const cs=WD.cs[i], cd=WD.cd[i], ws=WD.ws[i], wd=WD.wd[i], wh=WD.wh[i], wd2=WD.wdir2[i];
+  const curAvail = cs!=null&&cd!=null;
+  const windAvail= ws!=null&&wd!=null;
+  const waveAvail= wh!=null&&wd2!=null;
 
-  ['t','h'].forEach(p=>{
-    set(`${p}-wave`,wvl); set(`${p}-cs`,cskn); set(`${p}-cd`,cdStr);
-    set(`${p}-ws`,wsStr); set(`${p}-wdir`,wdStr); set(`${p}-wh`,whStr); set(`${p}-wd2`,wd2Str);
-  });
-  if(cd!==null){rot('tc-arr',cd);rot('hc-arr',cd);}
-  if(wd!==null){rot('tw-arr',wd);rot('hw-arr',wd);}
-  if(wd2!==null){rot('tw2-arr',wd2);rot('hw2-arr',wd2);}
+  renderCompass('cur-content',  curAvail,
+    curAvail?(cs*1.944).toFixed(2)+' kn':null,
+    curAvail?cdir(cd)+'（'+Math.round(cd)+'°）':null, 'a');
+  renderCompass('wind-content', windAvail,
+    windAvail?ws.toFixed(1)+' m/s':null,
+    windAvail?cdir(wd)+'（'+Math.round(wd)+'°）':null, 'g');
+  renderCompass('wave-content', waveAvail,
+    waveAvail?wh.toFixed(2)+' m':null,
+    waveAvail?cdir(wd2)+'（'+Math.round(wd2)+'°）':null, 'b');
+
+  // 海況
+  const condEl=document.getElementById('cond-content');
+  if(wh!=null){
+    const wvl=wh<0.3?'凪':wh<0.7?'小波':wh<1.2?'中波':wh<2?'やや荒れ':'荒れ';
+    condEl.textContent=wvl;
+    condEl.style.color=wh<0.7?'var(--green)':wh<1.2?'var(--amber)':'var(--coral)';
+  }else{condEl.textContent='取得不可';condEl.style.color='var(--muted)';}
+
+  // 潮汐は表示時刻に連動して再描画
+  if(TIDE_DATA) renderTide();
 }
 
-function set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function setH(id,v){const e=document.getElementById(id);if(e)e.innerHTML=v;}
-function rot(id,d){const e=document.getElementById(id);if(e)e.style.transform=`rotate(${d}deg)`;}
+function renderCompass(elId, avail, big, sub, colorCls){
+  const el=document.getElementById(elId);
+  if(avail){
+    const match=sub&&sub.match(/（(\d+)°）/);
+    const deg=match?match[1]:0;
+    el.innerHTML=`<div class="c-row">
+      <div class="cring ${colorCls}"><div class="carr" style="transform:rotate(${deg}deg)"></div><div class="cdot"></div></div>
+      <div class="cv"><div class="big ${colorCls}-txt">${big}</div><div class="sub">${sub}</div></div>
+    </div>`;
+  }else{
+    el.innerHTML='<div class="unavail"><span style="font-size:18px;display:block;margin-bottom:4px;">📵</span>取得不可<br><small>この地点では利用できないデータです</small></div>';
+  }
+}
+
 function cdir(d){
   return['北','北北東','北東','東北東','東','東南東','南東','南南東',
          '南','南南西','南西','西南西','西','西北西','北西','北北西'][Math.round(d/22.5)%16];
 }
 
+// ══════════════════════════════════════════════════
+//  ポイント選択
+// ══════════════════════════════════════════════════
+function selectCustom(){
+  const lat=parseFloat(document.getElementById('inp-lat').value);
+  const lng=parseFloat(document.getElementById('inp-lng').value);
+  if(isNaN(lat)||isNaN(lng)||lat<20||lat>50||lng<120||lng>160){
+    alert('有効な緯度・経度を入力してください。\n緯度: 20〜50 / 経度: 120〜160');
+    return;
+  }
+  selectPoint(lat, lng);
+}
+
+function selectPoint(lat, lng){
+  const latStr = lat.toFixed(5)+'°N';
+  const lngStr = lng.toFixed(5)+'°E';
+
+  document.getElementById('hdr-title').textContent = `📍 ${latStr}, ${lngStr}`;
+  document.getElementById('hdr-coord').textContent = `${latStr}  ${lngStr}`;
+  document.getElementById('pt-name').textContent   = `${latStr}, ${lngStr}`;
+  document.getElementById('pt-coord').textContent  = '';
+  document.getElementById('pt-tide-port').textContent = '🔭 最寄り潮汐観測点 検索中…';
+  document.getElementById('pt-icon').textContent   = '📍';
+
+  // Googleマップ更新
+  document.getElementById('gmap').src=
+    `https://maps.google.com/maps?q=${lat},${lng}&z=15&t=k&output=embed&hl=ja`;
+
+  // 潮汐とAPIを並列取得
+  setSt('データ取得中…','');
+  TIDE_DATA=null; TIDE_TMRW=null; TIDE_PORT=null;
+  document.getElementById('tide-content').innerHTML='<div id="tide-loading">🌊 潮汐データ取得中…</div>';
+
+  Promise.all([
+    fetchTide(lat, lng),
+    loadWeather(lat, lng)
+  ]).then(()=>{
+    setSt('✅ データ取得完了','ok');
+  }).catch(()=>{
+    setSt('⚠ 一部データ取得に失敗','warn');
+  });
+}
+
+// ══════════════════════════════════════════════════
+//  スライダー
+// ══════════════════════════════════════════════════
 function onSlide(val){
-  STEP = parseInt(val);
-  document.getElementById('map-slider').value  = val;
-  document.getElementById('data-slider').value = val;
+  STEP=parseInt(val);
+  document.getElementById('map-slider').value=val;
+  document.getElementById('data-slider').value=val;
   render();
 }
 document.getElementById('map-slider').addEventListener('input',function(){onSlide(this.value);});
 document.getElementById('data-slider').addEventListener('input',function(){onSlide(this.value);});
 
-function jumpMap(lat,lng,el){
-  document.getElementById('gmap').src=`https://maps.google.com/maps?q=${lat},${lng}&z=17&t=k&output=embed&hl=ja`;
-  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));
-  el.classList.add('sel');
-}
+// ══════════════════════════════════════════════════
+//  タブ切替
+// ══════════════════════════════════════════════════
 function switchTab(name){
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',['map','data'][i]===name));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id===name+'-page'));
 }
 
-loadWeather();
+// ══════════════════════════════════════════════════
+//  起動
+// ══════════════════════════════════════════════════
 setInterval(()=>{
   document.getElementById('now').textContent=
     new Date().toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
