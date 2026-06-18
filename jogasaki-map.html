@@ -371,6 +371,7 @@ function nearestHarbor(lat,lng){
 let TIDE_DATA  = null; // 今日の潮汐データ
 let TIDE_TMRW  = null; // 明日の潮汐データ
 let TIDE_YEST  = null; // 昨日の潮汐データ（過去スライダー用）
+let TIDE_DAYS  = {};   // 日付キー→潮汐データ の全日マップ
 let TIDE_PORT  = null; // 現在選択中の港情報
 
 // CORS対応fetch（直接→失敗時プロキシ）
@@ -395,8 +396,9 @@ async function fetchJSON(url){
   throw new Error('all fetch attempts failed');
 }
 
-function tideUrl(pc, hc, d){
-  return `https://api.tide736.net/get_tide.php?pc=${pc}&hc=${hc}&yr=${d.getFullYear()}&mn=${d.getMonth()+1}&dy=${d.getDate()}&rg=day`;
+function tideUrl(pc, hc, d, rg){
+  rg = rg || 'day';
+  return `https://api.tide736.net/get_tide.php?pc=${pc}&hc=${hc}&yr=${d.getFullYear()}&mn=${d.getMonth()+1}&dy=${d.getDate()}&rg=${rg}`;
 }
 
 // linkの港をキャッシュに追加
@@ -475,10 +477,11 @@ function renderDebugPorts(lat, lng){
   let h = '<div style="font-size:11px;color:#7fff7f;padding:10px;background:rgba(0,0,0,.5);border-radius:8px;margin-top:8px;line-height:1.6;">';
   h += `<b style="color:#00d4ff;">DEBUG 取得港数:${HARBOR_CACHE.length}</b>　`;
   h += `構築済み県:${Object.keys(PREF_INDEX).map(jpName).join(',')}<br>`;
+  const dayCount = Object.keys(TIDE_DAYS).length;
   const yc = TIDE_YEST?TIDE_YEST.tideArr.length:0;
   const tc = TIDE_DATA?TIDE_DATA.tideArr.length:0;
   const mc = TIDE_TMRW?TIDE_TMRW.tideArr.length:0;
-  h += `<span style="color:#f5a623;">潮位点数 昨日:${yc} 今日:${tc} 明日:${mc}</span><br>`;
+  h += `<span style="color:#f5a623;">取得日数:${dayCount}　潮位点数 昨日:${yc} 今日:${tc} 明日:${mc}</span><br>`;
   h += '<span style="color:#7da8c8;">▼ 港をタップでその地点に移動</span><br>━━━━━━<br>';
   h += ranked.map((r,i)=>
     `<a href="#" onclick="selectDebugPort(${r.lat},${r.lng},'${r.name}');return false;" `
@@ -548,17 +551,19 @@ async function fetchTide(lat, lng){
       return;
     }
 
-    // Step4: 最寄り港の潮汐を取得（失敗時は近い順に最大3港リトライ）
+    // Step4: 最寄り港の潮汐を rg=week で1回取得（前後7日分が1レスポンスに入る）
+    // 失敗時は近い順に最大3港リトライ
     const nearList = [...HARBOR_CACHE]
       .map(p=>({p, d:dist(lat,lng,p[2],p[3])}))
       .sort((a,b)=>a.d-b.d)
       .slice(0,3)
       .map(x=>x.p);
 
+    // weekは「指定日を含む週」を返すので、昨日が確実に含まれるよう昨日を起点にする
     let finalR = null;
     for(const cand of nearList){
       try{
-        const r = await fetchJSON(tideUrl(cand[0], cand[1], today));
+        const r = await fetchJSON(tideUrl(cand[0], cand[1], yest, 'week'));
         if(r && r.status===1){ finalR = r; break; }
       }catch(e){ /* 次の港へ */ }
     }
@@ -566,19 +571,28 @@ async function fetchTide(lat, lng){
 
     const fp = finalR.tide.port;
     const realDist = Math.round(dist(lat, lng, dm2deg(fp.latitude), dm2deg(fp.longitude)));
-
     TIDE_PORT = { ...fp, _dist: realDist };
-    TIDE_DATA = parseTideDay(finalR);
 
-    try{
-      const rt = await fetchJSON(tideUrl(fp.prefecture_code, fp.harbor_code, tmrw));
-      if(rt && rt.status===1) TIDE_TMRW = parseTideDay(rt);
-    }catch(e){ TIDE_TMRW=null; }
+    // chartの全日付をパースして日付キーで保持
+    TIDE_DAYS = parseTideWeek(finalR);
 
-    try{
-      const ry = await fetchJSON(tideUrl(fp.prefecture_code, fp.harbor_code, yest));
-      if(ry && ry.status===1) TIDE_YEST = parseTideDay(ry);
-    }catch(e){ TIDE_YEST=null; }
+    // 昨日/今日/明日を日付キーで取り出し
+    const keyOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    TIDE_DATA = TIDE_DAYS[keyOf(today)] || null;
+    TIDE_YEST = TIDE_DAYS[keyOf(yest)]  || null;
+    TIDE_TMRW = TIDE_DAYS[keyOf(tmrw)]  || null;
+
+    // weekに明日が含まれない場合は明日単体を追加取得
+    if(!TIDE_TMRW){
+      try{
+        const r2 = await fetchJSON(tideUrl(fp.prefecture_code, fp.harbor_code, tmrw, 'week'));
+        if(r2 && r2.status===1){
+          const more = parseTideWeek(r2);
+          Object.assign(TIDE_DAYS, more);
+          TIDE_TMRW = TIDE_DAYS[keyOf(tmrw)] || null;
+        }
+      }catch(e){}
+    }
 
     renderTide();
     updatePortLabel();
@@ -609,20 +623,31 @@ const PREF_NAMES = {
 };
 function jpName(pc){ return PREF_NAMES[pc]||('県コード'+pc); }
 
-function parseTideDay(r){
-  const chart = r.tide.chart;
-  const dateKey = Object.keys(chart)[0];
-  const day = chart[dateKey];
-  // tide736のunixはミリ秒単位（13桁）。そのまま使用
-  // tide: 20分刻みの潮位配列
+// 単日のchart要素をパース
+function parseDayObj(day){
   const tideArr = (day.tide||[]).map(t=>({ ms: Number(t.unix), cm: t.cm, time: t.time }));
-  // flood / edd
   const floods = (day.flood||[]).map(t=>({ ms: Number(t.unix), cm: t.cm, time: t.time, type:'hi' }));
   const edds   = (day.edd||[]).map(t=>({ ms: Number(t.unix), cm: t.cm, time: t.time, type:'lo' }));
   const extrema = [...floods, ...edds].sort((a,b)=>a.ms-b.ms);
-  // moon
   const moon = day.moon || {};
   return { tideArr, extrema, moon };
+}
+
+// rg=week等で複数日が入ったchartを日付キーマップにパース
+function parseTideWeek(r){
+  const chart = r.tide.chart || {};
+  const out = {};
+  for(const dateKey of Object.keys(chart)){
+    out[dateKey] = parseDayObj(chart[dateKey]);
+  }
+  return out;
+}
+
+// 後方互換（単日）
+function parseTideDay(r){
+  const chart = r.tide.chart;
+  const dateKey = Object.keys(chart)[0];
+  return parseDayObj(chart[dateKey]);
 }
 
 function showTideError(msg){
@@ -643,12 +668,22 @@ function renderTide(){
   const displayMs = getCurrentDisplayMs();
   const { extrema, moon } = TIDE_DATA;
 
-  // 昨日＋今日＋明日の潮位配列をマージ（過去〜未来スライダー対応）
-  let tideArr = [];
-  if(TIDE_YEST) tideArr = tideArr.concat(TIDE_YEST.tideArr);
-  tideArr = tideArr.concat(TIDE_DATA.tideArr);
-  if(TIDE_TMRW) tideArr = tideArr.concat(TIDE_TMRW.tideArr);
+  // TIDE_DAYS（取得した全日）の潮位・極値をまとめてマージ
+  let tideArr = [], allExtrema = [];
+  const dayKeys = Object.keys(TIDE_DAYS);
+  if(dayKeys.length){
+    for(const k of dayKeys){
+      tideArr = tideArr.concat(TIDE_DAYS[k].tideArr);
+      allExtrema = allExtrema.concat(TIDE_DAYS[k].extrema);
+    }
+  } else {
+    // フォールバック（昨日今日明日）
+    if(TIDE_YEST){ tideArr=tideArr.concat(TIDE_YEST.tideArr); allExtrema=allExtrema.concat(TIDE_YEST.extrema); }
+    tideArr=tideArr.concat(TIDE_DATA.tideArr); allExtrema=allExtrema.concat(extrema);
+    if(TIDE_TMRW){ tideArr=tideArr.concat(TIDE_TMRW.tideArr); allExtrema=allExtrema.concat(TIDE_TMRW.extrema); }
+  }
   tideArr.sort((a,b)=>a.ms-b.ms);
+  allExtrema.sort((a,b)=>a.ms-b.ms);
 
   // 現在時刻に最も近い潮位を線形補間
   let cm = null;
@@ -660,16 +695,8 @@ function renderTide(){
     }
   }
   if(cm===null && tideArr.length){
-    // 範囲外なら最も近い端の値
     cm = Math.round(displayMs < tideArr[0].ms ? tideArr[0].cm : tideArr[tideArr.length-1].cm);
   }
-
-  // 昨日＋今日＋明日の極値をマージして上げ/下げを判定
-  let allExtrema = [];
-  if(TIDE_YEST) allExtrema = allExtrema.concat(TIDE_YEST.extrema);
-  allExtrema = allExtrema.concat(extrema);
-  if(TIDE_TMRW) allExtrema = allExtrema.concat(TIDE_TMRW.extrema);
-  allExtrema.sort((a,b)=>a.ms-b.ms);
 
   const prev = [...allExtrema].filter(e=>e.ms<=displayMs).pop();
   const next = allExtrema.find(e=>e.ms>displayMs);
@@ -690,15 +717,14 @@ function renderTide(){
 
   // 満干潮テーブル: 表示時刻の日付に合わせて選択
   const dispDate = new Date(displayMs);
-  const dispDay = dispDate.getDate();
+  const dispKey = `${dispDate.getFullYear()}-${String(dispDate.getMonth()+1).padStart(2,'0')}-${String(dispDate.getDate()).padStart(2,'0')}`;
   let tableExtrema = extrema, tableLabel = '今日';
-  if(TIDE_YEST && TIDE_YEST.extrema.length){
-    const yd = new Date(TIDE_YEST.extrema[0].ms).getDate();
-    if(yd === dispDay){ tableExtrema = TIDE_YEST.extrema; tableLabel = '前日'; }
-  }
-  if(TIDE_TMRW && TIDE_TMRW.extrema.length){
-    const td = new Date(TIDE_TMRW.extrema[0].ms).getDate();
-    if(td === dispDay){ tableExtrema = TIDE_TMRW.extrema; tableLabel = '翌日'; }
+  if(TIDE_DAYS[dispKey]){
+    tableExtrema = TIDE_DAYS[dispKey].extrema;
+    const todayKey = (()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;})();
+    const diffDays = Math.round((new Date(dispKey)-new Date(todayKey))/86400000);
+    tableLabel = diffDays===0?'今日':diffDays===-1?'前日':diffDays===1?'翌日':
+      (dispDate.getMonth()+1)+'/'+dispDate.getDate();
   }
 
   const todayRows = tableExtrema.map(e=>{
@@ -945,7 +971,7 @@ function selectPoint(lat, lng){
 
   // 潮汐とAPIを並列取得
   setSt('データ取得中…','');
-  TIDE_DATA=null; TIDE_TMRW=null; TIDE_YEST=null; TIDE_PORT=null;
+  TIDE_DATA=null; TIDE_TMRW=null; TIDE_YEST=null; TIDE_DAYS={}; TIDE_PORT=null;
   document.getElementById('tide-content').innerHTML='<div id="tide-loading">🌊 潮汐データ取得中…</div>';
 
   Promise.all([
