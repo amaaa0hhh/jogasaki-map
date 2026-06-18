@@ -167,7 +167,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bor
         <input class="coord-inp" type="text" id="inp-coord" placeholder="(34.8813563, 139.1320935)" style="flex:1;">
         <button class="coord-btn" onclick="selectCustom()">決定</button>
       </div>
-      <div class="coord-hint">Googleマップで場所を長押し→座標をコピー→貼り付けて決定（緯度, 経度）</div>
+      <div class="coord-hint">Googleマップで場所を長押し→座標をコピー→貼り付けて決定（緯度, 経度）　<a href="#" onclick="window.TIDE_DEBUG=!window.TIDE_DEBUG;this.textContent=window.TIDE_DEBUG?'[DEBUG ON]':'[debug]';document.getElementById('debug-area').style.display=window.TIDE_DEBUG?'block':'none';return false;" style="color:var(--cyan);text-decoration:none;">[debug]</a></div>
+      <div id="debug-area" style="display:none;max-height:200px;overflow-y:auto;"></div>
     </div>
     <div class="sl-bar">
       <div class="sl-row">
@@ -368,7 +369,8 @@ function nearestHarbor(lat,lng){
 //  tide736.net API
 // ══════════════════════════════════════════════════
 let TIDE_DATA  = null; // 今日の潮汐データ
-let TIDE_TMRW  = null; // 明日の潮汐データ（深夜帯の次の転流用）
+let TIDE_TMRW  = null; // 明日の潮汐データ
+let TIDE_YEST  = null; // 昨日の潮汐データ（過去スライダー用）
 let TIDE_PORT  = null; // 現在選択中の港情報
 
 // CORS対応fetch（直接→失敗時プロキシ）
@@ -465,9 +467,38 @@ async function buildPrefIndex(pc, onProgress){
   return ports;
 }
 
+// デバッグ: 近隣港トップ10をタップ選択可能なリストで表示
+function renderDebugPorts(lat, lng){
+  const ranked = [...HARBOR_CACHE]
+    .map(p=>({name:p[4], pc:p[0], hc:p[1], lat:p[2], lng:p[3], d:dist(lat,lng,p[2],p[3])}))
+    .sort((a,b)=>a.d-b.d).slice(0,10);
+  let h = '<div style="font-size:11px;color:#7fff7f;padding:10px;background:rgba(0,0,0,.5);border-radius:8px;margin-top:8px;line-height:1.6;">';
+  h += `<b style="color:#00d4ff;">DEBUG 取得港数:${HARBOR_CACHE.length}</b>　`;
+  h += `構築済み県:${Object.keys(PREF_INDEX).map(jpName).join(',')}<br>`;
+  h += '<span style="color:#7da8c8;">▼ 港をタップでその地点に移動</span><br>━━━━━━<br>';
+  h += ranked.map((r,i)=>
+    `<a href="#" onclick="selectDebugPort(${r.lat},${r.lng},'${r.name}');return false;" `
+    + `style="display:block;color:#7fff7f;text-decoration:none;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05);">`
+    + `${i+1}. <b style="color:#00d4ff;">${r.name}</b>(${r.pc}-${r.hc}) ${r.d.toFixed(1)}km `
+    + `[${r.lat.toFixed(3)},${r.lng.toFixed(3)}] <span style="color:#f5a623;">→選択</span></a>`
+  ).join('');
+  h += '</div>';
+  const el = document.getElementById('debug-area');
+  if(el){ el.innerHTML = h; el.style.display='block'; }
+}
+
+// デバッグ港をタップ→その港の座標を選択点にして全データ切り替え
+function selectDebugPort(lat, lng, name){
+  // 入力欄にも反映
+  const inp = document.getElementById('inp-coord');
+  if(inp) inp.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  selectPoint(lat, lng);
+}
+
 async function fetchTide(lat, lng){
   const today = new Date();
   const tmrw  = new Date(today); tmrw.setDate(tmrw.getDate()+1);
+  const yest  = new Date(today); yest.setDate(yest.getDate()-1);
 
   try{
     // Step1: 最も近い県を特定
@@ -502,6 +533,14 @@ async function fetchTide(lat, lng){
     const best = nh.port, bestD = nh.dist;
     if(!best){ showTideError('対象地点に対応する港が見つかりません'); TIDE_DATA=null; return; }
 
+    // デバッグ表示: 近隣港トップ10をタップ選択可能なリストで表示
+    if(window.TIDE_DEBUG){
+      renderDebugPorts(lat, lng);
+    } else {
+      const dbgEl = document.getElementById('debug-area');
+      if(dbgEl){ dbgEl.style.display='none'; dbgEl.innerHTML=''; }
+    }
+
     if(bestD > 80){
       showTideError(`最寄りの潮汐観測点（${best[4]}）まで約${bestD}kmあり、\n潮汐データが不正確なため非表示としています`);
       TIDE_DATA=null; TIDE_PORT=null;
@@ -534,6 +573,11 @@ async function fetchTide(lat, lng){
       const rt = await fetchJSON(tideUrl(fp.prefecture_code, fp.harbor_code, tmrw));
       if(rt && rt.status===1) TIDE_TMRW = parseTideDay(rt);
     }catch(e){ TIDE_TMRW=null; }
+
+    try{
+      const ry = await fetchJSON(tideUrl(fp.prefecture_code, fp.harbor_code, yest));
+      if(ry && ry.status===1) TIDE_YEST = parseTideDay(ry);
+    }catch(e){ TIDE_YEST=null; }
 
     renderTide();
     updatePortLabel();
@@ -590,7 +634,14 @@ function updatePortLabel(){
 function renderTide(){
   if(!TIDE_DATA){ showTideError('潮汐データなし'); return; }
   const displayMs = getCurrentDisplayMs();
-  const { tideArr, extrema, moon } = TIDE_DATA;
+  const { extrema, moon } = TIDE_DATA;
+
+  // 昨日＋今日＋明日の潮位配列をマージ（過去〜未来スライダー対応）
+  let tideArr = [];
+  if(TIDE_YEST) tideArr = tideArr.concat(TIDE_YEST.tideArr);
+  tideArr = tideArr.concat(TIDE_DATA.tideArr);
+  if(TIDE_TMRW) tideArr = tideArr.concat(TIDE_TMRW.tideArr);
+  tideArr.sort((a,b)=>a.ms-b.ms);
 
   // 現在時刻に最も近い潮位を線形補間
   let cm = null;
@@ -601,11 +652,16 @@ function renderTide(){
       break;
     }
   }
-  if(cm===null && tideArr.length) cm = Math.round(tideArr[tideArr.length-1].cm);
+  if(cm===null && tideArr.length){
+    // 範囲外なら最も近い端の値
+    cm = Math.round(displayMs < tideArr[0].ms ? tideArr[0].cm : tideArr[tideArr.length-1].cm);
+  }
 
-  // 今日＋明日の極値をマージして上げ/下げを判定
-  const allExtrema = [...extrema];
-  if(TIDE_TMRW) allExtrema.push(...TIDE_TMRW.extrema);
+  // 昨日＋今日＋明日の極値をマージして上げ/下げを判定
+  let allExtrema = [];
+  if(TIDE_YEST) allExtrema = allExtrema.concat(TIDE_YEST.extrema);
+  allExtrema = allExtrema.concat(extrema);
+  if(TIDE_TMRW) allExtrema = allExtrema.concat(TIDE_TMRW.extrema);
   allExtrema.sort((a,b)=>a.ms-b.ms);
 
   const prev = [...allExtrema].filter(e=>e.ms<=displayMs).pop();
@@ -625,8 +681,20 @@ function renderTide(){
   const tideName = moon.title || '--潮';
   const moonAge  = moon.age   ? parseFloat(moon.age).toFixed(1) : '--';
 
-  // 今日の満干潮テーブル
-  const todayRows = extrema.map(e=>{
+  // 満干潮テーブル: 表示時刻の日付に合わせて選択
+  const dispDate = new Date(displayMs);
+  const dispDay = dispDate.getDate();
+  let tableExtrema = extrema, tableLabel = '今日';
+  if(TIDE_YEST && TIDE_YEST.extrema.length){
+    const yd = new Date(TIDE_YEST.extrema[0].ms).getDate();
+    if(yd === dispDay){ tableExtrema = TIDE_YEST.extrema; tableLabel = '前日'; }
+  }
+  if(TIDE_TMRW && TIDE_TMRW.extrema.length){
+    const td = new Date(TIDE_TMRW.extrema[0].ms).getDate();
+    if(td === dispDay){ tableExtrema = TIDE_TMRW.extrema; tableLabel = '翌日'; }
+  }
+
+  const todayRows = tableExtrema.map(e=>{
     const isCur = prev && e.ms===prev.ms;
     const cls = (e.type==='hi'?'hi':'lo') + (isCur?' cur':'');
     const label = e.type==='hi'?'🔵 満潮':'🟢 干潮';
@@ -644,15 +712,14 @@ function renderTide(){
         <div class="tide-sub">${nextTxt||'---'}</div>
       </div>
     </div>
-    ${extrema.length?`
+    ${tableExtrema.length?`
     <table class="hl-table">
-      <tr><th>種別</th><th>時刻</th><th>潮位</th></tr>
+      <tr><th>種別（${tableLabel}）</th><th>時刻</th><th>潮位</th></tr>
       ${todayRows}
     </table>`:''}
   `;
 
   // 日出没
-  const sun = TIDE_DATA.tideArr.length ? null : null;
   const note = document.getElementById('tide-note');
   note.style.display = 'none';
 }
@@ -871,7 +938,7 @@ function selectPoint(lat, lng){
 
   // 潮汐とAPIを並列取得
   setSt('データ取得中…','');
-  TIDE_DATA=null; TIDE_TMRW=null; TIDE_PORT=null;
+  TIDE_DATA=null; TIDE_TMRW=null; TIDE_YEST=null; TIDE_PORT=null;
   document.getElementById('tide-content').innerHTML='<div id="tide-loading">🌊 潮汐データ取得中…</div>';
 
   Promise.all([
