@@ -226,12 +226,30 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bor
         <div class="note">Open-Meteo Forecast API</div>
       </div>
 
-      <!-- 波 -->
+      <!-- 波（合成） -->
       <div class="sec">
-        <div class="sec-hd">🌀 波</div>
+        <div class="sec-hd">🌀 波（合成）</div>
         <div id="wave-content">
           <div class="unavail">ポイント未選択</div>
         </div>
+        <div class="note" id="wave-period-note" style="display:none;"></div>
+      </div>
+
+      <!-- 風浪 -->
+      <div class="sec">
+        <div class="sec-hd">💨🌊 風浪（風による波）</div>
+        <div id="windwave-content">
+          <div class="unavail">ポイント未選択</div>
+        </div>
+      </div>
+
+      <!-- うねり -->
+      <div class="sec">
+        <div class="sec-hd">🌊 うねり（遠方からの波）</div>
+        <div id="swell-content">
+          <div class="unavail">ポイント未選択</div>
+        </div>
+        <div class="note" id="swell-period-note" style="display:none;"></div>
       </div>
 
       <!-- 海況 -->
@@ -371,40 +389,39 @@ function tideUrl(pc, hc, d){
 }
 
 async function fetchTide(lat, lng){
-  const {port} = nearestHarbor(lat, lng);
-  if(!port){ showTideError('対象地点に対応する港が見つかりません'); return; }
-
   const today = new Date();
   const tmrw  = new Date(today); tmrw.setDate(tmrw.getDate()+1);
 
   try{
-    // Step1: 代表港でAPIを叩く
-    const r = await fetchJSON(tideUrl(port[0], port[1], today));
-    if(!r || r.status !== 1) throw new Error(r && r.message);
+    // Step1: 入力地点に近い「県の起点」を距離順に最大3つ選ぶ
+    const reps = [...REP_PORTS]
+      .map(p=>({p, d:dist(lat,lng,p[2],p[3])}))
+      .sort((a,b)=>a.d-b.d)
+      .slice(0,3)
+      .map(x=>x.p);
 
-    // Step2: linkの全港（正しい座標）をキャッシュに追加
-    if(r.tide.link){
-      for(const lk of r.tide.link){
-        if(!HARBOR_CACHE.find(p=>p[0]===lk.prefecture_code&&p[1]===lk.harbor_code)){
-          HARBOR_CACHE.push([lk.prefecture_code, lk.harbor_code, lk.latitude, lk.longitude, lk.harbor_namej]);
+    // Step2: 各県の起点でAPIを叩き、linkの全港をキャッシュに集約
+    for(const rep of reps){
+      try{
+        const r = await fetchJSON(tideUrl(rep[0], rep[1], today));
+        if(r && r.status===1 && r.tide.link){
+          for(const lk of r.tide.link){
+            if(!HARBOR_CACHE.find(p=>p[0]===lk.prefecture_code&&p[1]===lk.harbor_code)){
+              HARBOR_CACHE.push([lk.prefecture_code, lk.harbor_code, lk.latitude, lk.longitude, lk.harbor_namej]);
+            }
+          }
         }
-      }
+      }catch(e){ /* この県は飛ばす */ }
     }
 
-    // Step3: キャッシュ更新後に最寄り港を再検索（linkの正しい座標で）
-    const {port:p2, dist:d2} = nearestHarbor(lat, lng);
+    // Step3: 集約したキャッシュから真の最寄り港を選択
+    const {port:best, dist:bestD} = nearestHarbor(lat, lng);
+    if(!best){ showTideError('対象地点に対応する港が見つかりません'); return; }
 
-    let finalR, finalDist;
-    if(p2[0]!==port[0] || p2[1]!==port[1]){
-      finalR = await fetchJSON(tideUrl(p2[0], p2[1], today));
-      finalDist = d2;
-      if(!finalR || finalR.status!==1) throw new Error('再取得失敗');
-    } else {
-      finalR = r;
-      finalDist = nearestHarbor(lat,lng).dist;
-    }
+    // Step4: 最寄り港の潮汐を取得
+    const finalR = await fetchJSON(tideUrl(best[0], best[1], today));
+    if(!finalR || finalR.status!==1) throw new Error('潮汐取得失敗');
 
-    // Step4: 返ってきた港の座標が入力から離れすぎてないか検証
     const fp = finalR.tide.port;
     const realDist = Math.round(dist(lat, lng, fp.latitude, fp.longitude));
     if(realDist > 150){
@@ -539,7 +556,7 @@ async function loadWeather(lat,lng){
   const key = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
   if(WEATHER_CACHE[key]){ WD=WEATHER_CACHE[key]; initSlider(); render(); return; }
 
-  const mu=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=wave_height,wave_direction,ocean_current_velocity,ocean_current_direction&past_days=1&forecast_days=1&timezone=Asia%2FTokyo`;
+  const mu=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=wave_height,wave_direction,wave_period,wind_wave_height,wind_wave_direction,swell_wave_height,swell_wave_direction,swell_wave_period,ocean_current_velocity,ocean_current_direction&past_days=1&forecast_days=1&timezone=Asia%2FTokyo`;
   const wu=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=wind_speed_10m,wind_direction_10m&past_days=1&forecast_days=1&timezone=Asia%2FTokyo`;
   try{
     const [m,w]=await Promise.all([
@@ -550,6 +567,12 @@ async function loadWeather(lat,lng){
       times:m.hourly.time, lat, lng,
       wh:m.hourly.wave_height||[],
       wdir2:m.hourly.wave_direction||[],
+      wper:m.hourly.wave_period||[],
+      wwh:m.hourly.wind_wave_height||[],
+      wwd:m.hourly.wind_wave_direction||[],
+      swh:m.hourly.swell_wave_height||[],
+      swd:m.hourly.swell_wave_direction||[],
+      swper:m.hourly.swell_wave_period||[],
       cs:(m.hourly.ocean_current_velocity||[]),
       cd:(m.hourly.ocean_current_direction||[]),
       ws:w.hourly.wind_speed_10m||[],
@@ -574,6 +597,12 @@ function mockWeather(lat,lng){
   WD={times:t,lat,lng,centerIdx:24,
     wh:t.map((_,i)=>+(0.3+0.25*Math.sin(i*0.31)).toFixed(2)),
     wdir2:t.map((_,i)=>(120+i*3)%360),
+    wper:t.map((_,i)=>+(5+1.5*Math.sin(i*0.2)).toFixed(1)),
+    wwh:t.map((_,i)=>+(0.2+0.15*Math.sin(i*0.33)).toFixed(2)),
+    wwd:t.map((_,i)=>(130+i*3)%360),
+    swh:t.map((_,i)=>+(0.2+0.18*Math.cos(i*0.27)).toFixed(2)),
+    swd:t.map((_,i)=>(160+i*2)%360),
+    swper:t.map((_,i)=>+(8+2*Math.sin(i*0.18)).toFixed(1)),
     cs:t.map((_,i)=>+(0.5+0.3*Math.cos(i*0.21)).toFixed(2)),
     cd:t.map((_,i)=>Math.round((205+i*2.1)%360)),
     ws:t.map((_,i)=>+(2.5+2*Math.sin(i*0.26)).toFixed(1)),
@@ -618,10 +647,16 @@ function render(){
   ['map-slider','data-slider'].forEach(id=>document.getElementById(id).style.setProperty('--pct',pct));
 
   const i=STEP;
-  const cs=WD.cs[i], cd=WD.cd[i], ws=WD.ws[i], wd=WD.wd[i], wh=WD.wh[i], wd2=WD.wdir2[i];
+  const cs=WD.cs[i], cd=WD.cd[i], ws=WD.ws[i], wd=WD.wd[i];
+  const wh=WD.wh[i], wd2=WD.wdir2[i], wper=WD.wper?WD.wper[i]:null;
+  const wwh=WD.wwh?WD.wwh[i]:null, wwd=WD.wwd?WD.wwd[i]:null;
+  const swh=WD.swh?WD.swh[i]:null, swd=WD.swd?WD.swd[i]:null, swper=WD.swper?WD.swper[i]:null;
+
   const curAvail = cs!=null&&cd!=null;
   const windAvail= ws!=null&&wd!=null;
   const waveAvail= wh!=null&&wd2!=null;
+  const wwAvail  = wwh!=null&&wwd!=null;
+  const swAvail  = swh!=null&&swd!=null;
 
   renderCompass('cur-content',  curAvail,
     curAvail?(cs*1.944).toFixed(2)+' kn':null,
@@ -632,6 +667,20 @@ function render(){
   renderCompass('wave-content', waveAvail,
     waveAvail?wh.toFixed(2)+' m':null,
     waveAvail?cdir(wd2)+'（'+Math.round(wd2)+'°）':null, 'b');
+  renderCompass('windwave-content', wwAvail,
+    wwAvail?wwh.toFixed(2)+' m':null,
+    wwAvail?cdir(wwd)+'（'+Math.round(wwd)+'°）':null, 'g');
+  renderCompass('swell-content', swAvail,
+    swAvail?swh.toFixed(2)+' m':null,
+    swAvail?cdir(swd)+'（'+Math.round(swd)+'°）':null, 'b');
+
+  // 周期ノート
+  const wpNote=document.getElementById('wave-period-note');
+  if(wper!=null){ wpNote.style.display=''; wpNote.textContent='周期: 約'+wper.toFixed(1)+'秒　／　Open-Meteo Marine API'; }
+  else wpNote.style.display='none';
+  const spNote=document.getElementById('swell-period-note');
+  if(swper!=null){ spNote.style.display=''; spNote.textContent='うねり周期: 約'+swper.toFixed(1)+'秒（長いほど遠方の大きなうねり）'; }
+  else spNote.style.display='none';
 
   // 海況
   const condEl=document.getElementById('cond-content');
