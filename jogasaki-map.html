@@ -338,6 +338,15 @@ const REP_PORTS = [
 // 港キャッシュ（APIのlinkで拡張）
 let HARBOR_CACHE = []; // 実在港のみ（APIで取得した正確な座標）[pc,hc,lat,lng,name]
 
+// tide736の座標は度分形式(DDMM.MM)。度(DD.DD)に変換
+function dm2deg(dm){
+  if(dm==null) return null;
+  const v = parseFloat(dm);
+  const d = Math.floor(v);
+  const m = (v - d) * 100;   // 小数部*100 = 分
+  return d + m/60;
+}
+
 // Haversine距離(km)
 function dist(lat1,lng1,lat2,lng2){
   const R=6371, d2r=Math.PI/180;
@@ -394,7 +403,7 @@ function cacheLinks(links){
   if(!links) return;
   for(const lk of links){
     if(!HARBOR_CACHE.find(p=>p[0]===lk.prefecture_code&&p[1]===lk.harbor_code)){
-      HARBOR_CACHE.push([lk.prefecture_code, lk.harbor_code, lk.latitude, lk.longitude, lk.harbor_namej]);
+      HARBOR_CACHE.push([lk.prefecture_code, lk.harbor_code, dm2deg(lk.latitude), dm2deg(lk.longitude), lk.harbor_namej]);
     }
   }
 }
@@ -439,10 +448,10 @@ async function buildPrefIndex(pc, onProgress){
       batchHits++;
       const p = r.tide.port;
       if(!ports.find(x=>x[0]===p.prefecture_code&&x[1]===p.harbor_code))
-        ports.push([p.prefecture_code, p.harbor_code, p.latitude, p.longitude, p.harbor_namej]);
+        ports.push([p.prefecture_code, p.harbor_code, dm2deg(p.latitude), dm2deg(p.longitude), p.harbor_namej]);
       if(r.tide.link) for(const lk of r.tide.link){
         if(!ports.find(x=>x[0]===lk.prefecture_code&&x[1]===lk.harbor_code))
-          ports.push([lk.prefecture_code, lk.harbor_code, lk.latitude, lk.longitude, lk.harbor_namej]);
+          ports.push([lk.prefecture_code, lk.harbor_code, dm2deg(lk.latitude), dm2deg(lk.longitude), lk.harbor_namej]);
       }
     }
     if(onProgress) onProgress(ports.length);
@@ -521,7 +530,7 @@ async function fetchTide(lat, lng){
     const finalR = await fetchJSON(tideUrl(best[0], best[1], today));
     if(!finalR || finalR.status!==1) throw new Error('潮汐取得失敗');
     const fp = finalR.tide.port;
-    const realDist = Math.round(dist(lat, lng, fp.latitude, fp.longitude));
+    const realDist = Math.round(dist(lat, lng, dm2deg(fp.latitude), dm2deg(fp.longitude)));
 
     TIDE_PORT = { ...fp, _dist: realDist };
     TIDE_DATA = parseTideDay(finalR);
