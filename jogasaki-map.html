@@ -823,9 +823,10 @@ function mockWeather(lat,lng){
 
 function initSlider(){
   if(!WD)return;
-  STEP=WD.centerIdx||24;
+  // スライダーは常に49段階(0..48)、中央24=現在に固定
+  STEP=24;
   ['map-slider','data-slider'].forEach(id=>{
-    const sl=document.getElementById(id); sl.max=WD.times.length-1; sl.value=STEP;
+    const sl=document.getElementById(id); sl.max=48; sl.value=24;
   });
 }
 
@@ -835,9 +836,8 @@ function setSt(txt,cls){const e=document.getElementById('st-l');e.textContent=tx
 //  表示時刻計算
 // ══════════════════════════════════════════════════
 function getCurrentDisplayMs(){
-  if(!WD) return Date.now();
-  const ci = WD.centerIdx||24;
-  const offsetH = STEP - ci;
+  // STEP=24(中央)を現在時刻とし、1ステップ=1時間で前後24時間
+  const offsetH = STEP - 24;
   return Date.now() + offsetH * 3600000;
 }
 
@@ -854,10 +854,14 @@ function render(){
   document.getElementById('now').textContent=fmt(new Date());
   document.getElementById('map-sl-time').textContent=tStr;
   document.getElementById('data-sl-time').textContent=tStr;
-  const pct=((STEP/(WD.times.length-1))*100).toFixed(1)+'%';
+  const pct=((STEP/48)*100).toFixed(1)+'%';
   ['map-slider','data-slider'].forEach(id=>document.getElementById(id).style.setProperty('--pct',pct));
 
-  const i=STEP;
+  // STEP(中央24=現在)をAPI時刻配列の実インデックスへ変換
+  const ci = WD.centerIdx!=null ? WD.centerIdx : 24;
+  let i = ci + (STEP - 24);
+  if(i < 0) i = 0;
+  if(i > WD.times.length-1) i = WD.times.length-1;
   const cs=WD.cs[i], cd=WD.cd[i], ws=WD.ws[i], wd=WD.wd[i];
   const wh=WD.wh[i], wd2=WD.wdir2[i], wper=WD.wper?WD.wper[i]:null;
   const wwh=WD.wwh?WD.wwh[i]:null, wwd=WD.wwd?WD.wwd[i]:null;
