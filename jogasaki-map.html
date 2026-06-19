@@ -91,13 +91,19 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bor
 .cring.g{border:1.5px solid rgba(127,255,127,.35);}
 .cring.b{border:1.5px solid rgba(100,180,255,.35);}
 .cring.p{border:1.5px solid rgba(192,132,252,.35);}
-.carr{position:absolute;top:50%;left:50%;width:3px;height:18px;
-  transform-origin:bottom center;margin-left:-1.5px;margin-top:-18px;border-radius:2px 2px 0 0;transition:transform .5s;}
-.cdot{position:absolute;top:50%;left:50%;width:5px;height:5px;border-radius:50%;transform:translate(-50%,-50%);}
+.carr{position:absolute;top:50%;left:50%;width:3px;height:16px;
+  transform-origin:bottom center;margin-left:-1.5px;margin-top:-16px;border-radius:2px;transition:transform .5s;}
+.carr::before{content:'';position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+  width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;}
+.cdot{position:absolute;top:50%;left:50%;width:6px;height:6px;border-radius:50%;transform:translate(-50%,-50%);}
 .cring.a .carr,.cring.a .cdot{background:var(--amber);}
 .cring.g .carr,.cring.g .cdot{background:var(--green);}
 .cring.b .carr,.cring.b .cdot{background:var(--blue);}
 .cring.p .carr,.cring.p .cdot{background:var(--purple);}
+.cring.a .carr::before{border-bottom:9px solid var(--amber);}
+.cring.g .carr::before{border-bottom:9px solid var(--green);}
+.cring.b .carr::before{border-bottom:9px solid var(--blue);}
+.cring.p .carr::before{border-bottom:9px solid var(--purple);}
 .cv .big{font-size:22px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;}
 .cv .sub{font-size:11px;color:var(--muted);margin-top:2px;}
 .a-txt{color:var(--amber);}.g-txt{color:var(--green);}.b-txt{color:var(--blue);}.p-txt{color:var(--purple);}
@@ -875,19 +881,24 @@ function render(){
 
   renderCompass('cur-content',  curAvail,
     curAvail?(cs*1.944).toFixed(2)+' kn':null,
-    curAvail?cdir(cd)+'（'+Math.round(cd)+'°）':null, 'a');
+    curAvail?cdir(cd)+'（'+Math.round(cd)+'°）へ':null, 'a',
+    curAvail?cd:null);
   renderCompass('wind-content', windAvail,
     windAvail?ws.toFixed(1)+' m/s':null,
-    windAvail?cdir(wd)+'（'+Math.round(wd)+'°）':null, 'g');
+    windAvail?cdir(wd)+'（'+Math.round(wd)+'°）':null, 'g',
+    windAvail?wd:null);
   renderCompass('wave-content', waveAvail,
     waveAvail?wh.toFixed(2)+' m':null,
-    waveAvail?cdir(wd2)+'（'+Math.round(wd2)+'°）':null, 'b');
+    waveAvail?cdir(wd2)+'（'+Math.round(wd2)+'°）':null, 'b',
+    waveAvail?wd2:null);
   renderCompass('windwave-content', wwAvail,
     wwAvail?wwh.toFixed(2)+' m':null,
-    wwAvail?cdir(wwd)+'（'+Math.round(wwd)+'°）':null, 'g');
+    wwAvail?cdir(wwd)+'（'+Math.round(wwd)+'°）':null, 'g',
+    wwAvail?wwd:null);
   renderCompass('swell-content', swAvail,
     swAvail?swh.toFixed(2)+' m':null,
-    swAvail?cdir(swd)+'（'+Math.round(swd)+'°）':null, 'b');
+    swAvail?cdir(swd)+'（'+Math.round(swd)+'°）':null, 'b',
+    swAvail?swd:null);
 
   // 周期ノート
   const wpNote=document.getElementById('wave-period-note');
@@ -909,11 +920,15 @@ function render(){
   if(TIDE_DATA) renderTide();
 }
 
-function renderCompass(elId, avail, big, sub, colorCls){
+function renderCompass(elId, avail, big, sub, colorCls, arrowDeg){
   const el=document.getElementById(elId);
   if(avail){
-    const match=sub&&sub.match(/（(\d+)°）/);
-    const deg=match?match[1]:0;
+    // arrowDegが渡されればそれを、無ければsubから抽出
+    let deg = arrowDeg;
+    if(deg==null){
+      const match=sub&&sub.match(/（(\d+)°）/);
+      deg = match?match[1]:0;
+    }
     el.innerHTML=`<div class="c-row">
       <div class="cring ${colorCls}"><div class="carr" style="transform:rotate(${deg}deg)"></div><div class="cdot"></div></div>
       <div class="cv"><div class="big ${colorCls}-txt">${big}</div><div class="sub">${sub}</div></div>
