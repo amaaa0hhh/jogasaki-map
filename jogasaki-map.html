@@ -886,19 +886,19 @@ function render(){
   renderCompass('wind-content', windAvail,
     windAvail?ws.toFixed(1)+' m/s':null,
     windAvail?cdir(wd)+'（'+Math.round(wd)+'°）':null, 'g',
-    windAvail?wd:null);
+    windAvail?(wd+180)%360:null);
   renderCompass('wave-content', waveAvail,
     waveAvail?wh.toFixed(2)+' m':null,
     waveAvail?cdir(wd2)+'（'+Math.round(wd2)+'°）':null, 'b',
-    waveAvail?wd2:null);
+    waveAvail?(wd2+180)%360:null);
   renderCompass('windwave-content', wwAvail,
     wwAvail?wwh.toFixed(2)+' m':null,
     wwAvail?cdir(wwd)+'（'+Math.round(wwd)+'°）':null, 'g',
-    wwAvail?wwd:null);
+    wwAvail?(wwd+180)%360:null);
   renderCompass('swell-content', swAvail,
     swAvail?swh.toFixed(2)+' m':null,
     swAvail?cdir(swd)+'（'+Math.round(swd)+'°）':null, 'b',
-    swAvail?swd:null);
+    swAvail?(swd+180)%360:null);
 
   // 周期ノート
   const wpNote=document.getElementById('wave-period-note');
