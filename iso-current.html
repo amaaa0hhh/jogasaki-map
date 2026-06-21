@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="磯潮流">
 <meta name="theme-color" content="#0a1217">
-<title>墓下の磯 潮流ビジュアライザ たたき</title>
+<title>墓下の磯 潮流ビジュアライザ v3</title>
 <style>
   :root{
     --bg:#0a1217; --panel:#10202a; --panel2:#0d1a22; --line:#1c3340;
@@ -51,7 +51,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🌊 墓下の磯 潮流ビジュアライザ <span style="color:var(--sub);font-weight:400">たたき v0.1</span></h1>
+  <h1>🌊 墓下の磯 潮流ビジュアライザ <span style="color:var(--sub);font-weight:400">v3</span></h1>
   <div class="tag">座標 34.8820, 139.1330 ／ 立ち位置=東向き。外力から50m圏の卓越流を合成して矢印表示。<b>地形スキーマは概略</b>・係数は要校正（ラインの流れ方を見て合わせる）。実測の流速計ではない。</div>
 
   <div class="card">
@@ -126,6 +126,7 @@
         <label>別の画像に差し替え（Googleマップ等のスクショ）</label>
         <input type="file" id="bgFile" accept="image/*">
         <div class="hint">初期表示は釣りドコの地形図（矢印と整合）。Googleマップのスクショに差し替えてもOK、その場合は位置/拡大でズレを合わせる。差し替え画像はこの端末に保存（アプリ内プレビューでは保存されない）。</div>
+        <div class="btns"><button id="bgReset">背景マップを初期化</button></div>
       </div>
     </details>
   </div>
@@ -442,6 +443,15 @@ $("save").addEventListener("click",save);
 $("reset").addEventListener("click",()=>{store.del("isocur_cal");K=Object.assign({},K_DEF);buildK();
   $("floodDir").value=0;$("refRange").value=150;$("ripDir").value=112.5;$("ripX").value=.50;$("ripY").value=.60;$("density").value=30;
   $("rxv").textContent=.50;$("ryv").textContent=.60;$("adv").textContent=30;draw();});
+$("bgReset").addEventListener("click",()=>{
+  store.del("isocur_bg");$("bgFile").value="";
+  $("bgShow").checked=true;$("hideLand").checked=true;
+  $("bgOpacity").value="0.9";$("bgX").value="0";$("bgY").value="0";$("bgScale").value="1";
+  $("bgov").textContent="0.9";$("bxv").textContent="0";$("byv").textContent="0";$("bsv").textContent="1";
+  const c=store.get("isocur_cal")||{};
+  c.bgShow=true;c.hideLand=true;c.bgOpacity="0.9";c.bgX="0";c.bgY="0";c.bgScale="1";
+  store.set("isocur_cal",c);
+  setBg(BG_DEFAULT);draw();});
 
 /* ---- init ---- */
 (function init(){
