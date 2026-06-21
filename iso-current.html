@@ -382,6 +382,30 @@ function draw(){
   if(M.rip>0.12){drains.forEach((dr,i)=>{const c=i===0?"#ff5a52":"#ff9d52";
     ctx.fillStyle=c;ctx.beginPath();ctx.arc(dr.cx,dr.cy,i===0?4:3,0,7);ctx.fill();
     arrow(dr.cx,dr.cy,bvec(dr.dir).x*dr.str,bvec(dr.dir).y*dr.str,c,i===0?3:2.4);});}
+  // --- 狙い(aim) marker: 払い出し強→本命の払い出し、弱→根周りのヨレ ---
+  (function(){
+    const strong=M.rip>0.18;
+    const ax=strong?(+$("ripX").value)*W:SHIMINE[0].x*W+0.05*W;
+    const ay=strong?(+$("ripY").value)*H:SHIMINE[0].y*H;
+    const rA=0.085*W, COL="rgba(124,255,178,.95)";
+    ctx.save();
+    ctx.strokeStyle=COL;ctx.shadowColor=COL;ctx.shadowBlur=8;
+    ctx.setLineDash([6,4]);ctx.lineWidth=2.5;
+    ctx.beginPath();ctx.arc(ax,ay,rA,0,7);ctx.stroke();
+    ctx.setLineDash([]);ctx.shadowBlur=0;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(ax,ay,rA*0.45,0,7);ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ax-rA-4,ay);ctx.lineTo(ax-rA+5,ay);
+    ctx.moveTo(ax+rA-5,ay);ctx.lineTo(ax+rA+4,ay);
+    ctx.moveTo(ax,ay-rA-4);ctx.lineTo(ax,ay-rA+5);
+    ctx.moveTo(ax,ay+rA-5);ctx.lineTo(ax,ay+rA+4);
+    ctx.stroke();
+    ctx.font="bold 12px -apple-system";
+    const lbl="狙い", tw=ctx.measureText(lbl).width;
+    ctx.fillStyle="rgba(10,18,23,.72)";ctx.fillRect(ax-tw/2-4, ay-rA-21, tw+8, 16);
+    ctx.fillStyle=COL;ctx.fillText(lbl, ax-tw/2, ay-rA-9);
+    ctx.restore();
+  })();
   // standing point + dominant arrow
   ctx.fillStyle="#ffd54a";ctx.beginPath();ctx.arc(stand.x,stand.y,6,0,7);ctx.fill();
   ctx.strokeStyle="#0a1217";ctx.lineWidth=2;ctx.stroke();
