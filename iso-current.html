@@ -25,7 +25,10 @@
   input,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
     border-radius:9px;padding:10px;font-size:16px;outline:none}
   input:focus,select:focus{border-color:var(--accent)}
-  .row{display:flex;gap:10px;flex-wrap:wrap}.row>div{flex:1;min-width:0}
+  /* iOS の datetime-local は固有最小幅を持ち flex 内で縮まず枠をはみ出す。min-width:0 で縮小可に */
+  input[type=datetime-local]{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none}
+  .row{display:flex;gap:10px;flex-wrap:wrap;min-width:0}.row>div{flex:1;min-width:0}
+  .row>input,.row>select{min-width:0}
   .chk{display:flex;align-items:center;gap:8px;margin-top:10px}.chk input{width:auto}
   .hint{font-size:11px;color:var(--sub);margin-top:5px;line-height:1.45}
   canvas{width:100%;display:block;border-radius:12px;background:#06121b}
