@@ -224,7 +224,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bor
         <div id="wind-content">
           <div class="unavail">ポイント未選択</div>
         </div>
-        <div class="note">Open-Meteo Forecast API</div>
+        <div class="note" id="wind-src-note">Open-Meteo（JMA優先）</div>
       </div>
 
       <!-- 波（合成） -->
@@ -767,15 +767,35 @@ async function loadWeather(lat,lng){
   const key = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
   if(WEATHER_CACHE[key]){ WD=WEATHER_CACHE[key]; initSlider(); render(); return; }
 
+  // 波: Open-Meteo Marine（日本近海はewam/gwam高解像度を優先指定）
   const mu=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=wave_height,wave_direction,wave_period,wind_wave_height,wind_wave_direction,swell_wave_height,swell_wave_direction,swell_wave_period,ocean_current_velocity,ocean_current_direction&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
-  const wu=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=wind_speed_10m,wind_direction_10m&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
+  // 風: 日本域はJMA(MSM/GSM)エンドポイント、域外はグローバルforecastにフォールバック
+  const wuJMA=`https://api.open-meteo.com/v1/jma?latitude=${lat}&longitude=${lng}&hourly=wind_speed_10m,wind_direction_10m&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
+  const wuGlobal=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=wind_speed_10m,wind_direction_10m&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
+
+  // 風はJMAを先に試し、データが無ければグローバルへ
+  async function fetchWind(){
+    try{
+      const r = await fetch(wuJMA,{mode:'cors'}).then(x=>{if(!x.ok)throw 0;return x.json();});
+      // JMAが有効なデータを返したか確認（風速配列が空/全null なら域外とみなす）
+      const ws = r.hourly && r.hourly.wind_speed_10m;
+      if(ws && ws.some(v=>v!=null)){ r._src='JMA(MSM/GSM)'; return r; }
+      throw 0;
+    }catch(e){
+      const r = await fetch(wuGlobal,{mode:'cors'}).then(x=>{if(!x.ok)throw 0;return x.json();});
+      r._src='Global(GFS/ICON)';
+      return r;
+    }
+  }
+
   try{
     const [m,w]=await Promise.all([
       fetch(mu,{mode:'cors'}).then(r=>{if(!r.ok)throw 0;return r.json();}),
-      fetch(wu,{mode:'cors'}).then(r=>{if(!r.ok)throw 0;return r.json();})
+      fetchWind()
     ]);
     WD={
       times:m.hourly.time, lat, lng,
+      windSrc: w._src||'Global',
       wh:m.hourly.wave_height||[],
       wdir2:m.hourly.wave_direction||[],
       wper:m.hourly.wave_period||[],
@@ -789,6 +809,13 @@ async function loadWeather(lat,lng){
       ws:w.hourly.wind_speed_10m||[],
       wd:w.hourly.wind_direction_10m||[],
     };
+    // 風の時刻配列と波の時刻配列がズレる場合に備え、風を波の時刻に合わせる
+    if(w.hourly.time && w.hourly.time.length && w.hourly.time[0]!==m.hourly.time[0]){
+      const wmap = {};
+      w.hourly.time.forEach((t,i)=>{ wmap[t]={s:w.hourly.wind_speed_10m[i], d:w.hourly.wind_direction_10m[i]}; });
+      WD.ws = m.hourly.time.map(t=> wmap[t]?wmap[t].s:null);
+      WD.wd = m.hourly.time.map(t=> wmap[t]?wmap[t].d:null);
+    }
     const now=new Date(); let ci=0,md=Infinity;
     WD.times.forEach((t,i)=>{const d=Math.abs(new Date(t)-now);if(d<md){md=d;ci=i;}});
     WD.centerIdx=ci;
@@ -805,7 +832,7 @@ async function loadWeather(lat,lng){
 function mockWeather(lat,lng){
   const now=new Date(),t=[];
   for(let i=-24;i<=24;i++){const d=new Date(now.getTime()+i*3600000);t.push(d.toISOString().slice(0,16));}
-  WD={times:t,lat,lng,centerIdx:24,
+  WD={times:t,lat,lng,centerIdx:24,windSrc:'mock',
     wh:t.map((_,i)=>+(0.3+0.25*Math.sin(i*0.31)).toFixed(2)),
     wdir2:t.map((_,i)=>(120+i*3)%360),
     wper:t.map((_,i)=>+(5+1.5*Math.sin(i*0.2)).toFixed(1)),
@@ -881,6 +908,14 @@ function render(){
     windAvail?ws.toFixed(1)+' m/s':null,
     windAvail?cdir(wd)+'（'+Math.round(wd)+'°）':null, 'g',
     windAvail?(wd+180)%360:null);
+  // 風データソース表記
+  const wsn=document.getElementById('wind-src-note');
+  if(wsn){
+    const src=WD.windSrc||'';
+    wsn.textContent = src.indexOf('JMA')>=0
+      ? 'Open-Meteo ／ 気象庁 JMA（MSM/GSM）日本域高精度'
+      : 'Open-Meteo ／ Global（GFS/ICON）';
+  }
   renderCompass('wave-content', waveAvail,
     waveAvail?wh.toFixed(2)+' m':null,
     waveAvail?cdir(wd2)+'（'+Math.round(wd2)+'°）':null, 'b',
