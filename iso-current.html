@@ -107,6 +107,8 @@
         <div><label>流速 ノット</label><input id="curSpd" type="number" step="0.1" value="0.5"></div>
       </div>
     </div>
+    <div class="btns" style="margin-top:16px"><button id="saveAll" class="primary">全体を保存</button></div>
+    <div class="ftnote" id="saveAllMsg" style="margin-top:6px"></div>
   </div>
 
   <div class="card">
@@ -148,6 +150,12 @@
           <input type="range" id="ripY" min="0.4" max="0.78" step="0.01" value="0.60" style="width:100%"></div>
         <div class="slider-row"><div class="top"><span>矢印密度</span><span id="adv"></span></div>
           <input type="range" id="density" min="18" max="44" step="2" value="30" style="width:100%"></div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+        <div class="slider-row"><div class="top"><span>全体ゲイン（速さ一括）</span><span id="gv"></span></div>
+          <input type="range" id="gain" min="0.3" max="2.5" step="0.05" value="1" style="width:100%"></div>
+        <label>校正アシスト：現場で見た流れの向き</label>
+        <div class="row"><div><select id="obsDir"></select></div><div style="flex:0 0 auto"><button id="assistBtn" type="button" style="white-space:nowrap">アシスト</button></div></div>
+        <div class="ftnote" id="assistOut" style="margin-top:8px"></div>
         <div class="btns"><button id="save" class="primary">保存</button><button id="reset">初期化</button></div>
         <div class="ftnote" id="saveMsg"></div>
       </div>
@@ -259,6 +267,7 @@ function dominant(){
   if($("curOn").checked) V=add(V, scl(bvec(+$("curDir").value), (+$("curSpd").value)*0.5144)); // kt->m/s
   // rip strength (drains seaward)
   const rip=K.rip*(Hs*ons + 0.5*Hw*onw);
+  const _g=$("gain"); if(_g) V=scl(V,+_g.value||1);
   return {V,rip,ts};
 }
 
@@ -434,6 +443,7 @@ document.querySelectorAll("input,select").forEach(el=>{
   el.addEventListener("input",()=>{if(el.id==="curOn")$("curFields").style.display=el.checked?"block":"none";
     if(el.id==="ripX")$("rxv").textContent=el.value;if(el.id==="ripY")$("ryv").textContent=el.value;
     if(el.id==="density")$("adv").textContent=el.value;
+    if(el.id==="gain")$("gv").textContent=el.value;
     if(el.id==="bgOpacity")$("bgov").textContent=el.value;
     if(el.id==="bgX")$("bxv").textContent=el.value;if(el.id==="bgY")$("byv").textContent=el.value;
     if(el.id==="bgScale")$("bsv").textContent=el.value;
@@ -453,7 +463,7 @@ window.addEventListener("resize",resize);
 function save(){store.set("isocur_cal",{K,floodDir:$("floodDir").value,refRange:$("refRange").value,
   ripDir:$("ripDir").value,ripX:$("ripX").value,ripY:$("ripY").value,density:$("density").value,
   bgShow:$("bgShow").checked,hideLand:$("hideLand").checked,bgOpacity:$("bgOpacity").value,
-  bgX:$("bgX").value,bgY:$("bgY").value,bgScale:$("bgScale").value});
+  bgX:$("bgX").value,bgY:$("bgY").value,bgScale:$("bgScale").value,gain:$("gain").value});
   $("saveMsg").textContent="保存した。";setTimeout(()=>$("saveMsg").textContent="",2000);}
 function load(){const c=store.get("isocur_cal");if(!c)return;
   if(c.K)K=Object.assign({},K_DEF,c.K);
@@ -462,11 +472,31 @@ function load(){const c=store.get("isocur_cal");if(!c)return;
   if(c.ripX)$("ripX").value=c.ripX;if(c.ripY)$("ripY").value=c.ripY;if(c.density)$("density").value=c.density;
   if("bgShow"in c)$("bgShow").checked=c.bgShow;if("hideLand"in c)$("hideLand").checked=c.hideLand;
   if(c.bgOpacity)$("bgOpacity").value=c.bgOpacity;if(c.bgX)$("bgX").value=c.bgX;
-  if(c.bgY)$("bgY").value=c.bgY;if(c.bgScale)$("bgScale").value=c.bgScale;}
+  if(c.bgY)$("bgY").value=c.bgY;if(c.bgScale)$("bgScale").value=c.bgScale;
+  if(c.gain)$("gain").value=c.gain;}
 $("save").addEventListener("click",save);
 $("reset").addEventListener("click",()=>{store.del("isocur_cal");K=Object.assign({},K_DEF);buildK();
   $("floodDir").value=0;$("refRange").value=150;$("ripDir").value=112.5;$("ripX").value=.50;$("ripY").value=.60;$("density").value=30;
-  $("rxv").textContent=.50;$("ryv").textContent=.60;$("adv").textContent=30;draw();});
+  $("rxv").textContent=.50;$("ryv").textContent=.60;$("adv").textContent=30;$("gain").value=1;$("gv").textContent="1";draw();});
+fillDir($("obsDir"),180);
+$("assistBtn").addEventListener("click",()=>{
+  const M=dominant();
+  const mb=bearingOf(M.V), ob=+$("obsDir").value;
+  const tb=M.ts.rising?(+$("floodDir").value):(+$("floodDir").value+180);
+  const tideNorth=Math.cos(rad(tb))>0;
+  const sw=comp(+$("swDir").value), lsNorth=sw.al>0;
+  const ns=b=>Math.cos(rad(b)), dNS=ns(ob)-ns(mb);
+  const out=[`モデル：<b>${dirName(mb)}</b>（${mag(M.V).toFixed(2)}相当）／実測：<b>${dirName(ob)}</b>`];
+  if(Math.abs(dNS)<0.25){ out.push("南北（磯沿い）はほぼ合ってる。あとは速さを全体ゲインで。"); }
+  else {
+    const wantNorth=dNS>0, ups=[], downs=[];
+    (tideNorth===wantNorth?ups:downs).push("潮汐 tide");
+    (lsNorth===wantNorth?ups:downs).push("沿岸流 ls");
+    out.push(`実測がモデルより<b>${wantNorth?"北":"南"}</b>寄り → ${ups.length?ups.join("・")+"<b>を上げる</b>":""}${ups.length&&downs.length?"／":""}${downs.length?downs.join("・")+"<b>を下げる</b>":""}。`);
+  }
+  out.push("速さだけズレてるなら<b>全体ゲイン</b>（速い→下げ／遅い→上げ）。東西＝沖岸は地形でほぼ固定、基本いじらない。");
+  $("assistOut").innerHTML=out.map(t=>`<div style="margin:5px 0;line-height:1.5">${t}</div>`).join("");
+});
 $("bgReset").addEventListener("click",()=>{
   store.del("isocur_bg");$("bgFile").value="";
   $("bgShow").checked=true;$("hideLand").checked=true;
@@ -478,16 +508,33 @@ $("bgReset").addEventListener("click",()=>{
   setBg(BG_DEFAULT);draw();});
 
 /* ---- init ---- */
+const INPUT_IDS=["t1dt","t1h","t2dt","t2h","swDir","swH","wsDir","wsH","wDir","wSpd","curOn","curDir","curSpd"];
+function saveAll(){
+  const o={};INPUT_IDS.forEach(id=>{const el=$(id);if(!el)return;o[id]=el.type==="checkbox"?el.checked:el.value;});
+  store.set("isocur_inputs",o);
+  save(); // 係数(isocur_cal)も保存
+  $("saveAllMsg").textContent="全体を保存した（潮汐・うねり・風・係数）。現在日時は毎回ライブ。";
+  setTimeout(()=>$("saveAllMsg").textContent="",2800);
+}
+function loadInputs(){
+  const o=store.get("isocur_inputs");if(!o)return;
+  Object.keys(o).forEach(id=>{const el=$(id);if(!el)return;
+    if(el.type==="checkbox")el.checked=o[id];else el.value=o[id];});
+  $("curFields").style.display=$("curOn").checked?"block":"none";
+}
+$("saveAll").addEventListener("click",saveAll);
+
 (function init(){
   const now=new Date();const iso=d=>{const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());
     return x.toISOString().slice(0,16);};
   $("dt").value=iso(now);
   $("t1dt").value=iso(now.getTime()-3*3600e3);$("t1h").value=140;
   $("t2dt").value=iso(now.getTime()+3*3600e3);$("t2h").value=40;
-  load();buildK();
+  load();buildK();loadInputs();
   $("rxv").textContent=$("ripX").value;$("ryv").textContent=$("ripY").value;$("adv").textContent=$("density").value;
   $("bgov").textContent=$("bgOpacity").value;$("bxv").textContent=$("bgX").value;
   $("byv").textContent=$("bgY").value;$("bsv").textContent=$("bgScale").value;
+  $("gv").textContent=$("gain").value;
   const storedBg=store.get("isocur_bg");
   setBg(storedBg||BG_DEFAULT); // setBg triggers resize/draw on load
   resize();
