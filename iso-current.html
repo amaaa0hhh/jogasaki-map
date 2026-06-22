@@ -230,16 +230,18 @@
 
     <div class="card">
       <h2 class="m-h">校正パネルの各つまみ</h2>
-      <div class="term"><div class="tn">上げの流向 floodDir</div><div class="td">上げ潮のとき潮汐流がどっちへ流れるか。下げは自動で逆向き。現場で潮の向きを見て合わせる。</div></div>
-      <div class="term"><div class="tn">基準潮位差 refRange</div><div class="td">これに対する比で潮汐流の強さが決まる。この地域の中〜大潮の目安（cm）。</div></div>
-      <div class="term"><div class="tn">潮汐 tide</div><div class="td">潮汐流の強さの音量。</div></div>
-      <div class="term"><div class="tn">沿岸流 ls</div><div class="td">うねり由来の岸沿い流れの音量。</div></div>
-      <div class="term"><div class="tn">払い出し rip</div><div class="td">離岸流の強さの音量。狙いリングや安全判定にも効く。</div></div>
-      <div class="term"><div class="tn">風 wind</div><div class="td">風ドリフトの音量。普通は0.025（＝風速の2.5%）のままでOK。</div></div>
-      <div class="term"><div class="tn">払い出し位置 ripX/ripY/向き</div><div class="td">本命の払い出しがマップ上どこに・どっち向きに出るか。実際に沖へ抜ける筋に合わせる。</div></div>
-      <div class="term"><div class="tn">全体ゲイン</div><div class="td">向きを変えずに矢印全体の速さを一括で上下。速さ合わせ専用の1本つまみ。</div></div>
-      <div class="term"><div class="tn">校正アシスト</div><div class="td">現場で見た流れの向きを選んで押すと、どのスライダーをどっち回すか文字で出る。</div></div>
-      <div class="term"><div class="tn">矢印密度</div><div class="td">表示する矢印の本数（見た目だけ。計算には無関係）。</div></div>
+      <p class="m-lead" style="margin:0 0 10px">各つまみは「その力の音量」。<b class="aimc">上げる＝その力を強く効かせる</b>／<b class="warnc">下げる＝弱める</b>。矢印の向きと長さがどう動くかで見る。</p>
+      <div class="term"><div class="tn">上げの流向 floodDir</div><div class="td">上げ潮の潮汐流の向き（数値でなく方位）。下げ潮は自動で真逆。<b>変えると</b>＝潮汐成分の向きが回り、合算矢印の南北が振れる。現場で潮の流れる向きに合わせる。</div></div>
+      <div class="term"><div class="tn">基準潮位差 refRange</div><div class="td">潮汐流の強さの「基準」。<b>大きくすると</b>＝同じ潮位差でも潮汐流が弱く出る（基準が上がるので相対的に小さく）。<b>小さくすると</b>＝潮汐流が強く出る。地域の中〜大潮の目安cmを入れる。</div></div>
+      <div class="term"><div class="tn">潮汐 tide</div><div class="td"><b>上げると</b>＝潮の流れが強くなり、矢印が floodDir 方向（上げ）／逆（下げ）へ伸びる。この磯では南北成分が増える。<b>下げると</b>＝潮の影響が消え、うねり・風寄りの流れになる。</div></div>
+      <div class="term"><div class="tn">沿岸流 ls</div><div class="td"><b>上げると</b>＝うねり由来の岸沿い流れが強まり、矢印の南北（磯沿い）成分が増える。<b>下げると</b>＝岸沿いの流れが弱まり、潮汐や岸押しが相対的に勝つ。</div></div>
+      <div class="term"><div class="tn">払い出し rip</div><div class="td"><b>上げると</b>＝離岸流が強まり、払い出しの矢印（沖向きの筋）が長く・狙いリングが払い出し寄りに、安全警告も出やすく。<b>下げると</b>＝沖向きの筋が弱まり、狙いが根周りへ寄る。</div></div>
+      <div class="term"><div class="tn">風 wind</div><div class="td"><b>上げると</b>＝風で流される成分が強まり、矢印が風下へ振れる。<b>下げると</b>＝風の影響が薄れる。物理的には0.025（風速の2.5%）が目安なので普通はいじらない。</div></div>
+      <div class="term"><div class="tn">払い出し位置 ripX / ripY</div><div class="td">本命の払い出し（赤丸）のマップ上の位置。<b>ripX を上げると</b>＝東（沖）へ、<b>下げると</b>＝西（岸）へ。<b>ripY を上げると</b>＝南へ、<b>下げると</b>＝北へ動く。実際に沖へ抜ける筋の位置に合わせる。</div></div>
+      <div class="term"><div class="tn">払い出しの向き ripDir</div><div class="td">払い出しが沖へ抜けていく方位。実際の筋の向きに合わせる。狙いリングと払い出し矢印の向きが変わる。</div></div>
+      <div class="term"><div class="tn">全体ゲイン</div><div class="td"><b>上げると</b>＝向きはそのまま、全部の矢印が一律に速く（長く・色が上へ）。<b>下げると</b>＝一律に遅く。実測より速い/遅いと感じたらこれ1本で合わせる。</div></div>
+      <div class="term"><div class="tn">校正アシスト</div><div class="td">現場で見た流れの向きを選んで押すと、上げ下げ・うねり向きを踏まえて「どのつまみをどっち回すか」を文字で出す。数値ではなく操作ガイド。</div></div>
+      <div class="term"><div class="tn">矢印密度</div><div class="td"><b>上げると</b>＝矢印の本数が増えて細かく、<b>下げると</b>＝粗くなる。見た目だけで、流れの計算には影響しない。</div></div>
     </div>
 
     <div class="card">

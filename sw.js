@@ -1,7 +1,7 @@
 /* iso-current PWA service worker
    方針: ファイル名に依存しないランタイムキャッシュ。
    初回オンライン時にfetchしたものをキャッシュし、以降はオフラインでもキャッシュから配信する。 */
-const CACHE = 'iso-current-v8';
+const CACHE = 'iso-current-v9';
 
 self.addEventListener('install', function (e) {
   // すぐ有効化
