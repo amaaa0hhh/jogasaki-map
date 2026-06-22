@@ -47,11 +47,45 @@
   button.primary{background:var(--accent);color:#07221d;border-color:var(--accent)}
   .rip{color:var(--warn);font-weight:700}
   .ftnote{font-size:11px;color:var(--sub);line-height:1.6;margin-top:4px}
+  /* --- タブ --- */
+  .tabbar{display:flex;gap:8px;margin:6px 0 14px}
+  .tab{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--sub);
+    border-radius:10px;padding:10px;font-size:14px;font-weight:700}
+  .tab.active{background:var(--accent);color:#07221d;border-color:var(--accent)}
+  .tabpane[hidden]{display:none}
+  /* --- マニュアル専用 --- */
+  .manual .m-lead{color:var(--sub);font-size:12.5px;line-height:1.6;margin:0 0 16px}
+  .manual .m-h{font-size:13px;margin:0 0 10px;color:var(--accent);font-weight:700;letter-spacing:.04em}
+  .manual .m-h3{font-size:13.5px;margin:16px 0 5px;color:var(--txt)}
+  .manual p{margin:7px 0;font-size:14px;line-height:1.65}
+  .manual ul{margin:7px 0;padding-left:20px;font-size:14px;line-height:1.65}
+  .manual li{margin:5px 0}
+  .manual b{color:#fff}
+  .manual .term{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .manual .term:last-child{border-bottom:none}
+  .manual .tn{flex:0 0 120px;font-weight:700;font-size:13px;color:var(--txt)}
+  .manual .td{flex:1;font-size:13px;color:var(--sub);line-height:1.55}
+  .manual .chip{display:inline-block;padding:1px 7px;border-radius:6px;font-size:11px;font-weight:700;
+    border:1px solid var(--line);background:var(--panel2);color:var(--sub);margin-right:4px}
+  .manual .mnote{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--warn);
+    border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--sub);margin:12px 0;line-height:1.6}
+  .manual .mnote.ok{border-left-color:var(--accent)}
+  .manual .aimc{color:#7cffb2;font-weight:700}
+  .manual .warnc{color:var(--warn);font-weight:700}
+  .manual table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  .manual th,.manual td{border:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+  .manual th{background:var(--panel2);color:var(--sub);font-weight:600}
+  .manual code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>🌊 墓下の磯 潮流ビジュアライザ <span style="color:var(--sub);font-weight:400">v3</span></h1>
+  <div class="tabbar">
+    <button class="tab active" id="tabBtnTool" type="button">ツール</button>
+    <button class="tab" id="tabBtnManual" type="button">📖 使い方</button>
+  </div>
+  <div id="tab-tool" class="tabpane">
   <div class="tag">座標 34.8820, 139.1330 ／ 立ち位置=東向き。外力から50m圏の卓越流を合成して矢印表示。<b>地形スキーマは概略</b>・係数は要校正（ラインの流れ方を見て合わせる）。実測の流速計ではない。</div>
 
   <div class="card">
@@ -166,11 +200,121 @@
     使い方：予報値（うねり/風浪/風/潮汐）を入れる → 矢印で卓越流が出る。現場で実際のドリフト方向と強さを見て、合わなければ校正の係数・上げ流向・払い出し位置を合わせて保存。<br>
     <span class="rip">⚠ 払い出しが「強」のときは離岸流に注意。</span>地形スキーマは衛星画像からの概略で、正確な海底地形ではない。
   </div>
-</div>
+  </div><!-- /#tab-tool -->
+
+  <div id="tab-manual" class="tabpane manual" hidden>
+    <p class="m-lead">墓下の磯 潮流ビジュアライザ／用語・係数・校正のやり方。立ち位置は東向き、外力から50m圏の卓越流を合成して矢印で出す。<b>実測の流速計ではなく、現場で合わせ込む道具</b>。</p>
+
+    <div class="card">
+      <h2 class="m-h">まず仕組み（これだけ掴めばいい）</h2>
+      <p>立ち位置の<b>黄色い矢印 ＝ 4つの“押す力”の足し算</b>。スライダーはそれぞれの力の<b>音量つまみ</b>。</p>
+      <ul>
+        <li><span class="chip">tide</span>潮汐　<span class="chip">ls</span>沿岸流　<span class="chip">rip</span>払い出し　<span class="chip">wind</span>風</li>
+        <li><b>校正</b>＝「矢印を、現場で実際に見える流れに合わせ込む」作業。それ以上でも以下でもない。</li>
+      </ul>
+      <div class="mnote">係数の初期値（tide .35 / ls .55 / rip .55）は<b>作者の当て推量</b>。ズレてて当たり前で、君が現場で上下するもの。だから絶対値は信用せず、<b>向きと相対の傾向</b>を見る。</div>
+    </div>
+
+    <div class="card">
+      <h2 class="m-h">用語</h2>
+      <div class="term"><div class="tn">卓越流（黄矢印）</div><div class="td">4つの力を合算した、立ち位置の代表的な流れ。色と長さが速さ（相当値）。</div></div>
+      <div class="term"><div class="tn">潮汐 tide</div><div class="td">上げ下げで反転する潮の流れ。潮位差が大きい（大潮）ほど強い。位相は現在時刻から計算。</div></div>
+      <div class="term"><div class="tn">沿岸流 ls</div><div class="td">うねりが斜めに入って岸沿いに発生する流れ。波が斜めなほど強い。この磯では南北方向。</div></div>
+      <div class="term"><div class="tn">払い出し rip</div><div class="td">岸に押し込まれた水が沖へ戻る筋（離岸流）。波が大きく正面から入るほど強い。</div></div>
+      <div class="term"><div class="tn">風 wind</div><div class="td">海面を風が引きずる流れ。風速の約2.5%が表面流になる（吹送流）。</div></div>
+      <div class="term"><div class="tn">うねり／風浪</div><div class="td">うねり＝遠くから来る長周期のうねり。風浪＝その場の風で立つ短周期の波。別々に入力する。</div></div>
+      <div class="term"><div class="tn">サラシ</div><div class="td">波が崩れてできる白い泡の帯。魚のレンジが上がりやすい好ポイントの目印。</div></div>
+      <div class="term"><div class="tn">根ヨレ</div><div class="td">沈み根の周りで流れがヨレる場所。ベイトや本命が付きやすい。</div></div>
+      <div class="term"><div class="tn"><span class="aimc">狙いリング</span></div><div class="td">マップ上のミント色の照準。払い出しが強い時は本命の払い出し、弱い時は根周りのヨレを自動で指す。</div></div>
+    </div>
+
+    <div class="card">
+      <h2 class="m-h">校正パネルの各つまみ</h2>
+      <div class="term"><div class="tn">上げの流向 floodDir</div><div class="td">上げ潮のとき潮汐流がどっちへ流れるか。下げは自動で逆向き。現場で潮の向きを見て合わせる。</div></div>
+      <div class="term"><div class="tn">基準潮位差 refRange</div><div class="td">これに対する比で潮汐流の強さが決まる。この地域の中〜大潮の目安（cm）。</div></div>
+      <div class="term"><div class="tn">潮汐 tide</div><div class="td">潮汐流の強さの音量。</div></div>
+      <div class="term"><div class="tn">沿岸流 ls</div><div class="td">うねり由来の岸沿い流れの音量。</div></div>
+      <div class="term"><div class="tn">払い出し rip</div><div class="td">離岸流の強さの音量。狙いリングや安全判定にも効く。</div></div>
+      <div class="term"><div class="tn">風 wind</div><div class="td">風ドリフトの音量。普通は0.025（＝風速の2.5%）のままでOK。</div></div>
+      <div class="term"><div class="tn">払い出し位置 ripX/ripY/向き</div><div class="td">本命の払い出しがマップ上どこに・どっち向きに出るか。実際に沖へ抜ける筋に合わせる。</div></div>
+      <div class="term"><div class="tn">全体ゲイン</div><div class="td">向きを変えずに矢印全体の速さを一括で上下。速さ合わせ専用の1本つまみ。</div></div>
+      <div class="term"><div class="tn">校正アシスト</div><div class="td">現場で見た流れの向きを選んで押すと、どのスライダーをどっち回すか文字で出る。</div></div>
+      <div class="term"><div class="tn">矢印密度</div><div class="td">表示する矢印の本数（見た目だけ。計算には無関係）。</div></div>
+    </div>
+
+    <div class="card">
+      <h2 class="m-h">係数はどうやって決めた？</h2>
+      <h3 class="m-h3">根拠が固い部分</h3>
+      <ul>
+        <li><b>風ドリフト 0.025</b>＝風速の2.5%（表面吹送流の古典則）</li>
+        <li><b>各力の「式の形」</b>：沿岸流 ∝ 波高×sinα×cosα、潮汐 ∝ 潮位差×sin位相（教科書ベース）</li>
+        <li><b>払い出し位置・根の位置</b>＝釣りドコのALB地形図を目視トレース</li>
+      </ul>
+      <h3 class="m-h3">勘の部分（要校正）</h3>
+      <p><code>tide .35</code> <code>ls .55</code> <code>rip .55</code> の<b>絶対値は当て推量</b>。「東向きの磯はうねり系が潮汐より効く」という定性判断で相対バランスを置き、典型入力で矢印が見やすい長さになるよう調整しただけ。<b>だから現場で合わせるのが前提。</b></p>
+    </div>
+
+    <div class="card">
+      <h2 class="m-h">校正のやり方（物理が分からなくても回せる）</h2>
+      <h3 class="m-h3">① 流れを「見る」方法</h3>
+      <ul>
+        <li>投げたルアー／ウキが着水後に横へ流される向き・速さ</li>
+        <li><b>サラシの泡のかたまり</b>が動く向き・速さ</li>
+        <li>浮いた海藻・ゴミ、ラインのフケが出る向き</li>
+      </ul>
+      <p>速さの目安：竿1本≒5m。「泡が竿1本ぶん動くのに何秒か」。5mを10秒なら0.5m/s。</p>
+      <h3 class="m-h3">② 向きを合わせる（最優先）</h3>
+      <p>矢印の向きが実際の水の動きと合ってるか見るだけ。向きが合えば実用の8割。</p>
+      <ul>
+        <li>ズレてる → <b>上げ潮で流れる方向</b>を floodDir に入れる</li>
+        <li>払い出しの筋と赤丸がズレてる → ripX/ripY を動かす。向きが違えば ripDir</li>
+      </ul>
+      <h3 class="m-h3">③ 強さを合わせる（南北の綱引き）</h3>
+      <p>この磯は東向きなので<b>磯沿い＝南北、沖岸＝東西</b>。南北は「潮汐」と「うねり沿岸流」の綱引き。</p>
+      <table>
+        <tr><th>実測が…</th><th>やること</th></tr>
+        <tr><td>モデルより<b>南</b>寄り</td><td>ls↑ または tide↓</td></tr>
+        <tr><td>モデルより<b>北</b>寄り</td><td>tide↑ または ls↓</td></tr>
+        <tr><td>東西がズレ</td><td>地形でほぼ固定。基本いじらない</td></tr>
+        <tr><td>速さだけズレ</td><td>全体ゲインで合わせる</td></tr>
+      </table>
+      <p><b>校正アシスト</b>に実測の向きを入れれば、上げ下げ・うねり向きを考慮して「どっち回すか」を自動で出す。</p>
+      <h3 class="m-h3">④ 条件を分けて1項ずつ詰める</h3>
+      <table>
+        <tr><th>その日の条件</th><th>効く力</th><th>合わせる係数</th></tr>
+        <tr><td>ベタ凪・うねり無し・大潮</td><td>潮汐だけ</td><td>tide（＋floodDir）</td></tr>
+        <tr><td>うねりあり・ほぼ無風</td><td>沿岸流＋払い出し</td><td>ls / rip（＋ripX/Y/向き）</td></tr>
+        <tr><td>強風・波小さい</td><td>風ドリフト</td><td>wind（大体そのまま）</td></tr>
+      </table>
+      <div class="mnote ok"><b>保存：</b>家で潮汐・予報を入れて「全体を保存」→ 現場でアプリ起動で自動復元。現在日時だけ毎回ライブ。現場では流れ見て校正アシスト＋全体ゲインで詰めるだけ。</div>
+    </div>
+
+    <div class="card">
+      <h2 class="m-h">大事な前提</h2>
+      <ul>
+        <li>出てる速さは<b>「相当値」で本物のm/sじゃない</b>。狙いは絶対値当てじゃなく<b>「同じ条件なら同じ数字＝再現性」</b>。</li>
+        <li>「この色＝ヤバい速さ」と体で覚えれば実用十分。</li>
+        <li><span class="warnc">地形スキーマは概略。</span>安全判断の最終責任は現場の自分の目。荒れてたら無理しない。</li>
+      </ul>
+    </div>
+  </div><!-- /#tab-manual -->
 
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
+/* --- タブ切替 --- */
+function showTab(which){
+  const tool=which==="tool";
+  $("tab-tool").hidden=!tool; $("tab-manual").hidden=tool;
+  $("tabBtnTool").classList.toggle("active",tool);
+  $("tabBtnManual").classList.toggle("active",!tool);
+  window.scrollTo(0,0);
+  if(tool && typeof resize==="function") resize(); // 非表示中はcanvas幅0なので戻ったら再描画
+}
+window.addEventListener("DOMContentLoaded",()=>{
+  $("tabBtnTool").addEventListener("click",()=>showTab("tool"));
+  $("tabBtnManual").addEventListener("click",()=>showTab("manual"));
+});
 const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},
   set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
 
