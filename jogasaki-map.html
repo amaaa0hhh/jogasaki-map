@@ -767,8 +767,40 @@ async function loadWeather(lat,lng){
   const key = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
   if(WEATHER_CACHE[key]){ WD=WEATHER_CACHE[key]; initSlider(); render(); return; }
 
-  // 波: Open-Meteo Marine（日本近海はewam/gwam高解像度を優先指定）
-  const mu=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=wave_height,wave_direction,wave_period,wind_wave_height,wind_wave_direction,swell_wave_height,swell_wave_direction,swell_wave_period,ocean_current_velocity,ocean_current_direction&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
+  // 波: MeteoFrance WAM（8km高解像度）優先、失敗時は自動選択へ
+  // 注: MeteoFrance波モデルには潮流が無いため、潮流は別途自動選択で取得しマージ
+  const waveOnly = 'wave_height,wave_direction,wave_period,wind_wave_height,wind_wave_direction,swell_wave_height,swell_wave_direction,swell_wave_period';
+  const curOnly  = 'ocean_current_velocity,ocean_current_direction';
+  const muMF=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=${waveOnly}&models=meteofrance_wave&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
+  const muAuto=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=${waveOnly},${curOnly}&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
+  const muCur=`https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lng}&hourly=${curOnly}&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
+
+  async function fetchWave(){
+    try{
+      // MeteoFrance波 + 潮流(自動) を並列取得
+      const [mf, cur] = await Promise.all([
+        fetch(muMF,{mode:'cors'}).then(x=>{if(!x.ok)throw 0;return x.json();}),
+        fetch(muCur,{mode:'cors'}).then(x=>x.ok?x.json():null).catch(()=>null)
+      ]);
+      const wh = mf.hourly && mf.hourly.wave_height;
+      if(wh && wh.some(v=>v!=null)){
+        // 潮流を波の時刻配列に合わせてマージ（時刻ズレ対策）
+        if(cur && cur.hourly && cur.hourly.time){
+          const cmap={};
+          cur.hourly.time.forEach((t,i)=>{ cmap[t]={v:cur.hourly.ocean_current_velocity[i], d:cur.hourly.ocean_current_direction[i]}; });
+          mf.hourly.ocean_current_velocity  = mf.hourly.time.map(t=> cmap[t]?cmap[t].v:null);
+          mf.hourly.ocean_current_direction = mf.hourly.time.map(t=> cmap[t]?cmap[t].d:null);
+        }
+        mf._wsrc='MeteoFrance WAM (8km)';
+        return mf;
+      }
+      throw 0;
+    }catch(e){
+      const r = await fetch(muAuto,{mode:'cors'}).then(x=>{if(!x.ok)throw 0;return x.json();});
+      r._wsrc='Open-Meteo 自動選択';
+      return r;
+    }
+  }
   // 風: 日本域はJMA(MSM/GSM)エンドポイント、域外はグローバルforecastにフォールバック
   const wuJMA=`https://api.open-meteo.com/v1/jma?latitude=${lat}&longitude=${lng}&hourly=wind_speed_10m,wind_direction_10m&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
   const wuGlobal=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&hourly=wind_speed_10m,wind_direction_10m&past_days=2&forecast_days=2&timezone=Asia%2FTokyo`;
@@ -790,12 +822,13 @@ async function loadWeather(lat,lng){
 
   try{
     const [m,w]=await Promise.all([
-      fetch(mu,{mode:'cors'}).then(r=>{if(!r.ok)throw 0;return r.json();}),
+      fetchWave(),
       fetchWind()
     ]);
     WD={
       times:m.hourly.time, lat, lng,
       windSrc: w._src||'Global',
+      waveSrc: m._wsrc||'Open-Meteo',
       wh:m.hourly.wave_height||[],
       wdir2:m.hourly.wave_direction||[],
       wper:m.hourly.wave_period||[],
@@ -832,7 +865,7 @@ async function loadWeather(lat,lng){
 function mockWeather(lat,lng){
   const now=new Date(),t=[];
   for(let i=-24;i<=24;i++){const d=new Date(now.getTime()+i*3600000);t.push(d.toISOString().slice(0,16));}
-  WD={times:t,lat,lng,centerIdx:24,windSrc:'mock',
+  WD={times:t,lat,lng,centerIdx:24,windSrc:'mock',waveSrc:'mock',
     wh:t.map((_,i)=>+(0.3+0.25*Math.sin(i*0.31)).toFixed(2)),
     wdir2:t.map((_,i)=>(120+i*3)%360),
     wper:t.map((_,i)=>+(5+1.5*Math.sin(i*0.2)).toFixed(1)),
@@ -929,9 +962,10 @@ function render(){
     swAvail?cdir(swd)+'（'+Math.round(swd)+'°）':null, 'b',
     swAvail?(swd+180)%360:null);
 
-  // 周期ノート
+  // 周期ノート（波のデータソースも表示）
   const wpNote=document.getElementById('wave-period-note');
-  if(wper!=null){ wpNote.style.display=''; wpNote.textContent='周期: 約'+wper.toFixed(1)+'秒　／　Open-Meteo Marine API'; }
+  const wsrc=WD.waveSrc||'Open-Meteo Marine';
+  if(wper!=null){ wpNote.style.display=''; wpNote.textContent='周期: 約'+wper.toFixed(1)+'秒　／　'+wsrc; }
   else wpNote.style.display='none';
   const spNote=document.getElementById('swell-period-note');
   if(swper!=null){ spNote.style.display=''; spNote.textContent='うねり周期: 約'+swper.toFixed(1)+'秒（長いほど遠方の大きなうねり）'; }
